@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "prisma generate && next build",
+  "installCommand": "npm ci",
+  "regions": ["fra1"],
+  "crons": [
+    { "path": "/api/cron/outbox", "schedule": "*/10 * * * *" },
+    { "path": "/api/cron/deadlines", "schedule": "0 6 * * *" },
+    { "path": "/api/cron/backup-check", "schedule": "0 3 * * *" }
+  ]
+}

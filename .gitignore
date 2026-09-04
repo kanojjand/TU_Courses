@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+build
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+/prisma/*.db
+coverage
+.tmpchk
+
+# Секреты. .env.example — шаблон без реальных значений, он отслеживается.
+.env
+.env.*
+!.env.example

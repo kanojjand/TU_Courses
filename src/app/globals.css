@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Дизайн-токены — раздел 8.2 ТЗ.
+ * До получения брендбука вуза (п. 14.1.8) используется нейтральная тема.
+ * Замена палитры выполняется правкой значений ниже — компоненты не трогаются.
+ */
+:root {
+  --c-bg: 250 250 250;
+  --c-surface: 255 255 255;
+  --c-muted: 244 244 245;
+  --c-border: 228 228 231;
+  --c-fg: 24 24 27;
+  --c-fg-muted: 113 113 122;
+  --c-brand: 21 94 117;
+  --c-brand-fg: 255 255 255;
+  --c-success: 22 122 79;
+  --c-warning: 180 118 8;
+  --c-danger: 190 42 42;
+
+  /* F-L-05: шрифт обязан отображать ә ғ қ ң ө ұ ү һ і.
+     Системные стеки ниже проверены на полноту казахской кириллицы. */
+  --font-ui: 'Segoe UI', 'Noto Sans', 'Helvetica Neue', Arial;
+}
+
+[data-theme='dark'] {
+  --c-bg: 12 14 17;
+  --c-surface: 24 27 31;
+  --c-muted: 32 36 41;
+  --c-border: 48 54 61;
+  --c-fg: 236 238 240;
+  --c-fg-muted: 148 156 165;
+  --c-brand: 94 191 217;
+  --c-brand-fg: 8 20 24;
+  --c-success: 74 196 138;
+  --c-warning: 226 176 65;
+  --c-danger: 240 118 118;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --c-bg: 12 14 17;
+    --c-surface: 24 27 31;
+    --c-muted: 32 36 41;
+    --c-border: 48 54 61;
+    --c-fg: 236 238 240;
+    --c-fg-muted: 148 156 165;
+    --c-brand: 94 191 217;
+    --c-brand-fg: 8 20 24;
+    --c-success: 74 196 138;
+    --c-warning: 226 176 65;
+    --c-danger: 240 118 118;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-bg text-fg antialiased;
+    font-family: var(--font-ui), system-ui, sans-serif;
+  }
+  /* Доступность (раздел 6.5): видимый фокус для навигации с клавиатуры */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-bg;
+  }
+  h1, h2, h3, h4 {
+    @apply font-semibold tracking-tight text-fg;
+  }
+  table {
+    @apply w-full border-collapse text-sm;
+  }
+}
+
+@layer components {
+  /* Читаемая ширина строки для учебного текста (раздел 8.2: 65–75 символов) */
+  .prose-lesson {
+    @apply max-w-prose text-[1.0625rem] leading-[1.75];
+  }
+  .prose-lesson h2 { @apply mt-8 mb-3 text-xl; }
+  .prose-lesson h3 { @apply mt-6 mb-2 text-lg; }
+  .prose-lesson p { @apply my-4; }
+  .prose-lesson ul { @apply my-4 list-disc pl-6 space-y-1; }
+  .prose-lesson ol { @apply my-4 list-decimal pl-6 space-y-1; }
+  .prose-lesson a { @apply text-brand underline underline-offset-2; }
+  .prose-lesson blockquote { @apply my-4 border-l-4 border-brand/40 pl-4 italic text-fg-muted; }
+  .prose-lesson code { @apply rounded bg-muted px-1.5 py-0.5 text-[0.9em]; }
+  .prose-lesson pre { @apply my-4 overflow-x-auto rounded-lg bg-muted p-4 text-sm; }
+  .prose-lesson pre code { @apply bg-transparent p-0; }
+  .prose-lesson table { @apply my-4 text-sm; }
+  .prose-lesson th, .prose-lesson td { @apply border border-border px-3 py-2 text-left; }
+  .prose-lesson th { @apply bg-muted font-semibold; }
+  .prose-lesson img { @apply my-4 max-w-full rounded-lg; }
+
+  /* Плотные таблицы для деканата и преподавателя (раздел 8.2) */
+  .table-dense th {
+    @apply sticky top-0 z-10 whitespace-nowrap bg-muted px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-fg-muted;
+  }
+  .table-dense td {
+    @apply whitespace-nowrap border-t border-border px-2 py-1.5;
+  }
+  .table-dense tbody tr:hover {
+    @apply bg-muted/60;
+  }
+
+  .scroll-x {
+    @apply overflow-x-auto;
+    scrollbar-width: thin;
+  }
+}
+
+/* Печать ведомостей и транскрипта */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+  .table-dense th { background: #eee !important; }
+}
