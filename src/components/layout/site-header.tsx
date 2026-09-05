@@ -7,6 +7,7 @@ import { LocaleSwitcher } from './locale-switcher';
 import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
 import { Button } from '@/components/ui/button';
+import { Logo } from './logo';
 
 export async function SiteHeader({
   locale,
@@ -52,25 +53,25 @@ export async function SiteHeader({
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
-        <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold">
-          <span
-            aria-hidden
-            className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-sm font-bold text-brand-fg"
-          >
-            LMS
-          </span>
-          <span className="hidden text-sm sm:inline">{tc('appName')}</span>
+    <header className="sticky top-0 z-40 border-b border-border bg-surface/85 backdrop-blur-md">
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:h-16 sm:gap-4">
+        <Link
+          href="/"
+          className="rounded-lg focus-visible:ring-offset-4"
+          aria-label={tc('appName')}
+        >
+          {/* На узком экране словесная часть уступает место навигации */}
+          <Logo className="sm:hidden" compact />
+          <Logo className="hidden sm:flex" subtitle="University" />
         </Link>
 
-        <nav aria-label="Основная навигация" className="scroll-x hidden flex-1 md:block">
-          <ul className="flex items-center gap-1">
+        <nav aria-label="Основная навигация" className="hidden flex-1 md:block">
+          <ul className="flex items-center gap-0.5">
             {links.map((l) => (
               <li key={l.href}>
                 <Link
                   href={l.href}
-                  className="rounded-lg px-3 py-1.5 text-sm text-fg-muted transition-colors hover:bg-muted hover:text-fg"
+                  className="block rounded-lg px-3 py-2 text-sm font-medium text-fg-muted transition-colors hover:bg-brand-soft hover:text-brand"
                 >
                   {l.label}
                 </Link>
@@ -92,14 +93,19 @@ export async function SiteHeader({
         </div>
       </div>
 
-      {/* Мобильная навигация (раздел 6.5: адаптив от 360 px) */}
-      <nav aria-label="Мобильная навигация" className="scroll-x border-t border-border md:hidden">
+      {/* Мобильная навигация (раздел 6.5: адаптив от 360 px).
+          Полоса с горизонтальной прокруткой: пунктов у роли бывает до семи,
+          в одну строку узкого экрана они не помещаются. */}
+      <nav
+        aria-label="Мобильная навигация"
+        className="scroll-x border-t border-border bg-surface md:hidden"
+      >
         <ul className="flex min-w-max items-center gap-1 px-3 py-2">
           {links.map((l) => (
             <li key={l.href}>
               <Link
                 href={l.href}
-                className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-muted hover:text-fg"
+                className="block whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-fg-muted transition-colors hover:bg-brand-soft hover:text-brand"
               >
                 {l.label}
               </Link>
