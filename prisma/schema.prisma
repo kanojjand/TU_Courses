@@ -280,6 +280,7 @@ model Department {
   disciplines   Discipline[]
   teachers      TeacherProfile[]
   conversations Conversation[]
+  theses        Thesis[]
 
   @@index([facultyId])
   @@map("departments")
@@ -310,13 +311,14 @@ model EducationProgram {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  department    Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  gosoProfile   GosoProfile?     @relation(fields: [gosoProfileId], references: [id], onDelete: SetNull)
+  department    Department             @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  gosoProfile   GosoProfile?           @relation(fields: [gosoProfileId], references: [id], onDelete: SetNull)
   disciplines   Discipline[]
   students      StudentProfile[]
-  minorStudents StudentProfile[] @relation("MinorStudents")
+  minorStudents StudentProfile[]       @relation("MinorStudents")
   groups        StudyGroup[]
   curricula     Curriculum[]
+  committees    AttestationCommittee[]
 
   @@index([departmentId])
   @@map("education_programs")
@@ -331,8 +333,9 @@ model AcademicYear {
   isCurrent Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  periods AcademicPeriod[]
-  ieps    Iep[]
+  periods    AcademicPeriod[]
+  ieps       Iep[]
+  committees AttestationCommittee[]
 
   @@map("academic_years")
 }
@@ -365,6 +368,7 @@ model AcademicPeriod {
   calendar     CalendarEvent[]
   regWindows   RegistrationWindow[]
   gpaSnapshots GpaSnapshot[]
+  placements   PracticePlacement[]
 
   @@unique([academicYearId, ordinal])
   @@index([status])
@@ -424,6 +428,12 @@ model User {
   staffAssignments    StaffAssignment[]        @relation("StaffAssignee")
   assignmentsMade     StaffAssignment[]        @relation("StaffAssignmentAuthor")
   statusChangesMade   StudentStatusHistory[]   @relation("StatusHistoryAuthor")
+  placementsLed       PracticePlacement[]      @relation("PracticeSupervisor")
+  diaryReviewed       PracticeDiaryEntry[]     @relation("DiaryReviewer")
+  reportsGraded       PracticeReport[]         @relation("PracticeGrader")
+  committeesChaired   AttestationCommittee[]   @relation("CommitteeChair")
+  committeeSeats      CommitteeMember[]
+  thesesSupervised    Thesis[]                 @relation("ThesisSupervisor")
   conversations       ConversationMember[]
   conversationsMade   Conversation[]           @relation("ConversationAuthor")
   messages            Message[]                @relation("MessageAuthor")
@@ -504,6 +514,10 @@ model StudentProfile {
   group            StudyGroup?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
   advisor          TeacherProfile?        @relation("AdvisorStudents", fields: [advisorId], references: [id], onDelete: SetNull)
   ieps             Iep[]
+  placements       PracticePlacement[]
+  theses           Thesis[]
+  finalAttestation FinalAttestation?
+  diploma          Diploma?
   appeals          GradeAppeal[]
   gpaSnapshots     GpaSnapshot[]
   creditTransfers  CreditTransfer[]
@@ -1757,6 +1771,7 @@ model CurriculumSlot {
   options         CurriculumSlotOption[]
   iepItems        IepItem[]
   creditTransfers CreditTransfer[]
+  placements      PracticePlacement[]
 
   @@index([curriculumId, cycle, component])
   @@map("curriculum_slots")
@@ -2258,6 +2273,7 @@ model Transcript {
 
   student  StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
   issuedBy User?          @relation("TranscriptIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+  diplomas Diploma[]
 
   @@index([studentId, kind])
   @@map("transcripts")
@@ -2475,4 +2491,274 @@ model DeviceToken {
 
   @@index([userId])
   @@map("device_tokens")
+}
+
+// ═══════ Практика и итоговая аттестация — этап 7 (разделы 4.8, 4.9) ═══════
+
+/// Вид профессиональной практики (Типовые правила, п. 37)
+enum PracticeKind {
+  EDUCATIONAL // учебная
+  PEDAGOGICAL // педагогическая
+  RESEARCH // исследовательская
+  PRODUCTION // производственная
+  PRE_DIPLOMA // преддипломная
+}
+
+/// Состояние прохождения практики
+enum PlacementStatus {
+  PLANNED // распределён на базу
+  IN_PROGRESS // практика идёт
+  REPORT_SUBMITTED // отчёт сдан
+  GRADED // оценён
+  CANCELLED // отменён
+}
+
+/// Роль в аттестационной комиссии
+enum CommitteeRole {
+  CHAIR // председатель
+  MEMBER // член комиссии
+  SECRETARY // секретарь
+  EXTERNAL // внешний член комиссии
+}
+
+/// Состояние дипломной работы
+enum ThesisStatus {
+  ASSIGNED // тема закреплена
+  IN_PROGRESS // выполняется
+  SUBMITTED // сдана на проверку
+  ADMITTED // допущена к защите
+  DEFENDED // защищена
+  FAILED // не защищена
+}
+
+/// База практики: организация, с которой заключён договор (F-PRC-02)
+model PracticeBase {
+  id            String    @id @default(cuid())
+  nameRu        String
+  nameKk        String?
+  /// БИН организации
+  bin           String?
+  address       String?
+  contactPerson String?
+  contactPhone  String?
+  /// Профиль организации — по нему проверяется соответствие Major (F-PRC-03)
+  profileNote   String?
+  /// Сколько обучающихся принимает одновременно
+  capacity      Int?
+  contractNo    String?
+  contractFrom  DateTime? @db.Date
+  contractTo    DateTime? @db.Date
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  placements PracticePlacement[]
+
+  @@index([isActive])
+  @@map("practice_bases")
+}
+
+/// Распределение обучающегося на базу практики (F-PRC-03)
+model PracticePlacement {
+  id                 String          @id @default(cuid())
+  studentId          String
+  /// Позиция учебного плана, которую закрывает практика
+  slotId             String?
+  baseId             String?
+  periodId           String?
+  kind               PracticeKind
+  startsOn           DateTime        @db.Date
+  endsOn             DateTime        @db.Date
+  credits            Decimal         @db.Decimal(5, 2)
+  /// Руководитель от вуза
+  supervisorId       String?
+  /// Руководитель от организации — сотрудник базы, а не пользователь системы
+  supervisorBaseName String?
+  orderNo            String?
+  status             PlacementStatus @default(PLANNED)
+  /// F-PRC-03: при наличии Minor база выбирается по профилю Major
+  isMajorProfile     Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  student    StudentProfile       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  slot       CurriculumSlot?      @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  base       PracticeBase?        @relation(fields: [baseId], references: [id], onDelete: SetNull)
+  period     AcademicPeriod?      @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  supervisor User?                @relation("PracticeSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+  diary      PracticeDiaryEntry[]
+  report     PracticeReport?
+
+  @@index([studentId, status])
+  @@index([baseId])
+  @@map("practice_placements")
+}
+
+/// Запись дневника практики (F-PRC-04)
+model PracticeDiaryEntry {
+  id           String    @id @default(cuid())
+  placementId  String
+  entryDate    DateTime  @db.Date
+  content      String    @db.Text
+  hours        Decimal?  @db.Decimal(4, 1)
+  reviewedById String?
+  reviewedAt   DateTime?
+  comment      String?   @db.Text
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  placement  PracticePlacement @relation(fields: [placementId], references: [id], onDelete: Cascade)
+  reviewedBy User?             @relation("DiaryReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([placementId, entryDate])
+  @@map("practice_diary_entries")
+}
+
+/// Отчёт по практике с отзывами руководителей (F-PRC-04)
+model PracticeReport {
+  id          String    @id @default(cuid())
+  placementId String    @unique
+  submittedAt DateTime?
+  /// Ключ файла отчёта в хранилище
+  storageKey  String?
+  fileName    String?
+  /// Отзыв руководителя от вуза
+  reviewUniv  String?   @db.Text
+  /// Отзыв руководителя от организации
+  reviewBase  String?   @db.Text
+  score       Decimal?  @db.Decimal(5, 2)
+  letter      String?
+  gradedById  String?
+  gradedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  placement PracticePlacement @relation(fields: [placementId], references: [id], onDelete: Cascade)
+  gradedBy  User?             @relation("PracticeGrader", fields: [gradedById], references: [id], onDelete: SetNull)
+
+  @@map("practice_reports")
+}
+
+/// Аттестационная комиссия по образовательной программе (F-FIN-01)
+model AttestationCommittee {
+  id             String    @id @default(cuid())
+  programId      String
+  academicYearId String
+  nameRu         String
+  chairId        String?
+  orderNo        String?
+  validFrom      DateTime? @db.Date
+  validTo        DateTime? @db.Date
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  program      EducationProgram   @relation(fields: [programId], references: [id], onDelete: Restrict)
+  academicYear AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  chair        User?              @relation("CommitteeChair", fields: [chairId], references: [id], onDelete: SetNull)
+  members      CommitteeMember[]
+  attestations FinalAttestation[]
+
+  @@index([programId, academicYearId])
+  @@map("attestation_committees")
+}
+
+model CommitteeMember {
+  committeeId String
+  userId      String
+  role        CommitteeRole @default(MEMBER)
+
+  committee AttestationCommittee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([committeeId, userId])
+  @@map("committee_members")
+}
+
+/// Дипломная работа или проект (F-FIN-02)
+model Thesis {
+  id              String       @id @default(cuid())
+  studentId       String
+  /// Работа или проект
+  isProject       Boolean      @default(false)
+  titleKk         String?
+  titleRu         String
+  titleEn         String?
+  supervisorId    String?
+  departmentId    String?
+  /// Приказ о закреплении темы и руководителя
+  approvedOrderNo String?
+  status          ThesisStatus @default(ASSIGNED)
+  storageKey      String?
+  fileName        String?
+  /// Доля оригинальности по проверке — вносится вручную до подключения
+  /// сервиса антиплагиата (фаза 2 по разделу 1.3 ТЗ)
+  originalityPct  Decimal?     @db.Decimal(5, 2)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  student      StudentProfile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  supervisor   User?              @relation("ThesisSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+  department   Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  attestations FinalAttestation[]
+
+  @@index([studentId])
+  @@index([supervisorId, status])
+  @@map("theses")
+}
+
+/// Итоговая аттестация обучающегося (F-FIN-03, F-FIN-05, F-FIN-06).
+///
+/// Одна запись на обучающегося: повторная сдача для повышения оценки
+/// не допускается (Типовые правила, п. 45), а пересдача в тот же период
+/// при «неудовлетворительно» не разрешается — обучающийся отчисляется.
+model FinalAttestation {
+  id            String      @id @default(cuid())
+  studentId     String      @unique
+  committeeId   String?
+  /// Защита дипломной работы либо комплексный экзамен
+  form          ControlForm
+  thesisId      String?
+  scheduledAt   DateTime?
+  heldAt        DateTime?
+  percent       Decimal?    @db.Decimal(5, 2)
+  letter        String?
+  gpaPoints     Decimal?    @db.Decimal(3, 2)
+  isPassed      Boolean?
+  protocolNo    String?
+  /// Решение комиссии о присуждении степени
+  degreeAwarded Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  student   StudentProfile        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  committee AttestationCommittee? @relation(fields: [committeeId], references: [id], onDelete: SetNull)
+  thesis    Thesis?               @relation(fields: [thesisId], references: [id], onDelete: SetNull)
+
+  @@index([committeeId])
+  @@map("final_attestations")
+}
+
+/// Диплом и приложение к нему (F-FIN-07)
+model Diploma {
+  id           String    @id @default(cuid())
+  studentId    String    @unique
+  number       String?   @unique
+  /// QR-код документа об образовании — выдаётся сервисом уполномоченного
+  /// органа; до подключения интеграции заполняется вручную
+  qrCode       String?
+  issuedOn     DateTime? @db.Date
+  withHonours  Boolean   @default(false)
+  degreeRu     String?
+  degreeKk     String?
+  degreeEn     String?
+  gpa          Decimal?  @db.Decimal(4, 3)
+  /// Приложение к диплому — зафиксированный транскрипт
+  supplementId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  student    StudentProfile @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  supplement Transcript?    @relation(fields: [supplementId], references: [id], onDelete: SetNull)
+
+  @@map("diplomas")
 }

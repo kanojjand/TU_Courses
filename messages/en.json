@@ -69,7 +69,8 @@
     "admin": "Administration",
     "electives": "Elective course catalogue",
     "iep": "My study plan",
-    "chats": "Chats"
+    "chats": "Chats",
+    "practice": "Practice"
   },
   "home": {
     "heroTitle": "University online learning platform",
@@ -221,7 +222,9 @@
     "groups": "Study groups",
     "ieps": "Individual study plans",
     "appeals": "Appeals and credit transfer",
-    "announcements": "Announcements"
+    "announcements": "Announcements",
+    "practice": "Professional practice",
+    "attestation": "Final attestation"
   },
   "errors": {
     "notFoundTitle": "Page not found",

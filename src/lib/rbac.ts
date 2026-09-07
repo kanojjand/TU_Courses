@@ -232,10 +232,11 @@ export function adminSectionsFor(user: Pick<SessionUser, 'roles'> | null): strin
   if (can(user, 'group:manage')) sections.push('groups');
   if (can(user, 'iep:confirm')) sections.push('ieps');
   if (can(user, 'period:manage')) sections.push('periods');
-  if (can(user, 'enrollment:manage')) sections.push('enrollments');
+  if (can(user, 'enrollment:manage')) sections.push('enrollments', 'practice');
   if (canAny(user, ['course:review', 'course:edit_any'])) sections.push('courses');
   if (can(user, 'gradesheet:view')) sections.push('gradesheets');
   if (can(user, 'grade:edit_after_close')) sections.push('appeals');
+  if (can(user, 'period:manage')) sections.push('attestation');
   if (canAny(user, ['report:view', 'settings:manage'])) sections.push('announcements');
   if (can(user, 'report:view')) sections.push('reports');
   if (can(user, 'integration:manage') || can(user, 'integration:approve_final'))

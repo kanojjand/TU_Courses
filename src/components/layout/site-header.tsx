@@ -36,7 +36,8 @@ export async function SiteHeader({
         { href: '/dashboard', label: t('dashboard') },
         { href: '/my/courses', label: t('myCourses') },
         { href: '/my/iep', label: t('iep') },
-        { href: '/my/grades', label: t('grades') }
+        { href: '/my/grades', label: t('grades') },
+        { href: '/my/practice', label: t('practice') }
       );
     }
     if (hasRole(user, 'TEACHER', 'TUTOR')) {
