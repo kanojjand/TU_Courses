@@ -9,6 +9,8 @@ const LABEL_KEYS: Record<string, string> = {
   programs: 'programs',
   disciplines: 'disciplines',
   curricula: 'curricula',
+  groups: 'groups',
+  ieps: 'ieps',
   periods: 'periods',
   enrollments: 'enrollments',
   courses: 'courses',

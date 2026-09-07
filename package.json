@@ -23,7 +23,8 @@
     "verify": "npm run typecheck && npm run test && npm run build",
     "db:seed:beta": "tsx scripts/seed-beta.ts",
     "db:rls": "tsx scripts/enable-rls.ts",
-    "db:seed:curriculum": "tsx scripts/seed-curriculum.ts"
+    "db:seed:curriculum": "tsx scripts/seed-curriculum.ts",
+    "db:seed:iep": "tsx scripts/seed-iep-demo.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

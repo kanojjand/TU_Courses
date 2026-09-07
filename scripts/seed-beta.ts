@@ -340,7 +340,7 @@ async function main() {
 
           for (const s of demoStudents) {
             await prisma.enrollment.upsert({
-              where: { courseId_studentId: { courseId: course.id, studentId: s.id } },
+              where: { courseId_studentId_attemptNo: { courseId: course.id, studentId: s.id, attemptNo: 1 } },
               create: { courseId: course.id, studentId: s.id, source: 'beta' },
               update: {},
             });
@@ -416,7 +416,7 @@ async function main() {
       });
       for (const c of published) {
         await prisma.enrollment.upsert({
-          where: { courseId_studentId: { courseId: c.id, studentId: profile.id } },
+          where: { courseId_studentId_attemptNo: { courseId: c.id, studentId: profile.id, attemptNo: 1 } },
           create: { courseId: c.id, studentId: profile.id, source: 'beta' },
           update: {},
         });

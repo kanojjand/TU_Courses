@@ -67,7 +67,8 @@
     "advisees": "Advisees",
     "teach": "My courses",
     "admin": "Administration",
-    "electives": "Elective course catalogue"
+    "electives": "Elective course catalogue",
+    "iep": "My study plan"
   },
   "home": {
     "heroTitle": "University online learning platform",
@@ -215,7 +216,9 @@
     "gradeFormula": "Final grade formula",
     "outboxQueue": "Outgoing event queue",
     "approveFinalGrades": "Approve transfer of final grades",
-    "curricula": "Curricula"
+    "curricula": "Curricula",
+    "groups": "Study groups",
+    "ieps": "Individual study plans"
   },
   "errors": {
     "notFoundTitle": "Page not found",

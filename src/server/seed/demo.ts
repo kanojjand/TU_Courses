@@ -653,7 +653,7 @@ export async function seedDemo(prisma: PrismaClient): Promise<void> {
   for (const courseId of enrolledCourseIds) {
     for (const studentId of studentIds) {
       await prisma.enrollment.upsert({
-        where: { courseId_studentId: { courseId, studentId } },
+        where: { courseId_studentId_attemptNo: { courseId, studentId, attemptNo: 1 } },
         create: { courseId, studentId, source: 'manual' },
         update: {},
       });

@@ -58,6 +58,15 @@ export type Permission =
   | 'curriculum:view'
   | 'curriculum:edit'
   | 'curriculum:approve'
+  // ИУП и регистрация (раздел 4.4)
+  | 'iep:manage_own'
+  | 'iep:view_any'
+  | 'iep:approve'
+  | 'iep:confirm'
+  // Группы, кураторы, эдвайзеры, статусы обучающихся (раздел 4.5)
+  | 'group:manage'
+  | 'staff:assign'
+  | 'student:status'
   // Администрирование
   | 'user:manage'
   | 'user:import'
@@ -92,7 +101,15 @@ const T: Permission[] = [
 export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
   GUEST: [],
 
-  STUDENT: ['learn:enroll', 'learn:take_quiz', 'learn:submit_assignment', 'grade:view_own', 'course:view_content'],
+  STUDENT: [
+    'learn:enroll',
+    'learn:take_quiz',
+    'learn:submit_assignment',
+    'grade:view_own',
+    'course:view_content',
+    // Свой ИУП студент формирует сам; утверждают эдвайзер и офис Регистратора
+    'iep:manage_own',
+  ],
 
   TEACHER: T,
 
@@ -101,7 +118,15 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
   // Просмотр прогресса закреплённых студентов, без права редактирования оценок.
   // Учебный план видит целиком: без него не проконсультировать по выбору дисциплин.
-  ADVISOR: ['progress:view_advisees', 'grade:view_course', 'report:view', 'curriculum:view'],
+  ADVISOR: [
+    'progress:view_advisees',
+    'grade:view_course',
+    'report:view',
+    'curriculum:view',
+    // F-IEP-04: согласование ИУП закреплённых студентов
+    'iep:view_any',
+    'iep:approve',
+  ],
 
   // Согласование курсов перед публикацией, учебные планы и валидатор ГОСО
   METHODIST: [
@@ -129,6 +154,11 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     'pd:view_full_iin',
     'curriculum:view',
     'curriculum:approve',
+    'iep:view_any',
+    'iep:confirm',
+    'group:manage',
+    'staff:assign',
+    'student:status',
   ],
 
   ADMIN: [
@@ -148,6 +178,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     'integration:manage',
     'pd:view_full_iin',
     'curriculum:view',
+    'iep:view_any',
+    'group:manage',
+    'staff:assign',
   ],
 
   PROCTOR: ['proctoring:observe'],
@@ -196,6 +229,8 @@ export function adminSectionsFor(user: Pick<SessionUser, 'roles'> | null): strin
   if (can(user, 'user:manage')) sections.push('users');
   if (can(user, 'reference:manage')) sections.push('programs', 'disciplines');
   if (can(user, 'curriculum:view')) sections.push('curricula');
+  if (can(user, 'group:manage')) sections.push('groups');
+  if (can(user, 'iep:confirm')) sections.push('ieps');
   if (can(user, 'period:manage')) sections.push('periods');
   if (can(user, 'enrollment:manage')) sections.push('enrollments');
   if (canAny(user, ['course:review', 'course:edit_any'])) sections.push('courses');

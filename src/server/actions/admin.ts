@@ -12,6 +12,7 @@ import { setSetting } from '@/server/settings';
 import { slugify } from '@/lib/utils';
 import { reviewCourse } from '@/server/courses';
 import { enqueueFinalGrades } from '@/integration/platonus/outbox';
+import { promoteFromWaitlist } from '@/server/iep';
 
 /** Административные действия — F-A-01…F-A-08. */
 
@@ -369,9 +370,11 @@ export async function enrollStudents(courseId: string, studentIds: string[]) {
   await prisma.$transaction(
     studentIds.map((studentId) =>
       prisma.enrollment.upsert({
-        where: { courseId_studentId: { courseId, studentId } },
+        // Ручная запись офисом Регистратора — всегда первая попытка;
+        // повторное изучение оформляется через ИУП (R-16)
+        where: { courseId_studentId_attemptNo: { courseId, studentId, attemptNo: 1 } },
         create: { courseId, studentId, source: 'manual' },
-        update: { cancelledAt: null },
+        update: { cancelledAt: null, status: 'REGISTERED' },
       })
     )
   );
@@ -401,9 +404,21 @@ export async function enrollGroup(courseId: string, groupId: string) {
 
 export async function cancelEnrollment(courseId: string, studentId: string) {
   const actor = await requirePermission('enrollment:manage');
-  await prisma.enrollment.update({
-    where: { courseId_studentId: { courseId, studentId } },
-    data: { cancelledAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const active = await tx.enrollment.findMany({
+      where: { courseId, studentId, cancelledAt: null },
+      select: { status: true },
+    });
+    // Снимаются все действующие попытки студента по этой дисциплине
+    await tx.enrollment.updateMany({
+      where: { courseId, studentId, cancelledAt: null },
+      data: { cancelledAt: new Date(), status: 'DROPPED' },
+    });
+    // Освободившееся место уходит первому в листе ожидания — так же,
+    // как при снятии регистрации самим студентом (F-IEP-05)
+    if (active.some((e) => e.status === 'REGISTERED')) {
+      await promoteFromWaitlist(tx, courseId);
+    }
   });
 
   await writeAudit({

@@ -92,7 +92,10 @@ enum StudentStatus {
   ACTIVE // обучается
   ACADEMIC_LEAVE // академический отпуск
   EXPELLED // отчислен
+  REINSTATED // восстановлен
   GRADUATED // выпущен
+  MOBILITY // академическая мобильность
+  TRANSFERRED // переведён
 }
 
 enum UserStatus {
@@ -104,6 +107,7 @@ enum UserStatus {
 enum PeriodType {
   SEMESTER
   TRIMESTER
+  QUARTER
   SUMMER
 }
 
@@ -299,12 +303,13 @@ model EducationProgram {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  department  Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  gosoProfile GosoProfile?     @relation(fields: [gosoProfileId], references: [id], onDelete: SetNull)
-  disciplines Discipline[]
-  students    StudentProfile[]
-  groups      StudyGroup[]
-  curricula   Curriculum[]
+  department    Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  gosoProfile   GosoProfile?     @relation(fields: [gosoProfileId], references: [id], onDelete: SetNull)
+  disciplines   Discipline[]
+  students      StudentProfile[]
+  minorStudents StudentProfile[] @relation("MinorStudents")
+  groups        StudyGroup[]
+  curricula     Curriculum[]
 
   @@index([departmentId])
   @@map("education_programs")
@@ -320,6 +325,7 @@ model AcademicYear {
   createdAt DateTime @default(now())
 
   periods AcademicPeriod[]
+  ieps    Iep[]
 
   @@map("academic_years")
 }
@@ -340,12 +346,17 @@ model AcademicPeriod {
   examEnd           DateTime     @db.Date
   status            PeriodStatus @default(PLANNED)
   isCurrent         Boolean      @default(false)
+  /// R-10: длительность в неделях. Норматив зависит от типа периода:
+  /// семестр — не менее 15, триместр — 10, квартал — 7 (ГОСО, п. 27)
+  weeksCount        Int?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
-  academicYear AcademicYear  @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  academicYear AcademicYear         @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
   courses      Course[]
   periodGrades PeriodGrade[]
+  calendar     CalendarEvent[]
+  regWindows   RegistrationWindow[]
 
   @@unique([academicYearId, ordinal])
   @@index([status])
@@ -402,6 +413,12 @@ model User {
   curriculaCreated    Curriculum[]           @relation("CurriculumAuthor")
   curriculaApproved   Curriculum[]           @relation("CurriculumApprover")
   validationRuns      CurriculumValidation[] @relation("ValidationRunner")
+  staffAssignments    StaffAssignment[]      @relation("StaffAssignee")
+  assignmentsMade     StaffAssignment[]      @relation("StaffAssignmentAuthor")
+  statusChangesMade   StudentStatusHistory[] @relation("StatusHistoryAuthor")
+  iepsAdvised         Iep[]                  @relation("IepAdvisor")
+  iepsApproved        Iep[]                  @relation("IepApprover")
+  iepsConfirmed       Iep[]                  @relation("IepConfirmer")
 
   @@index([status])
   @@map("users")
@@ -437,33 +454,45 @@ model UserRole {
 }
 
 model StudentProfile {
-  id            String        @id @default(cuid())
-  userId        String        @unique
-  programId     String
-  groupId       String?
-  advisorId     String?
+  id             String        @id @default(cuid())
+  userId         String        @unique
+  programId      String
+  groupId        String?
+  advisorId      String?
   /// Курс обучения (1..N)
-  studyYear     Int
-  studyForm     StudyForm     @default(DISTANCE)
-  language      LanguageCode
-  status        StudentStatus @default(ACTIVE)
-  admissionYear Int
+  studyYear      Int
+  studyForm      StudyForm     @default(DISTANCE)
+  language       LanguageCode
+  status         StudentStatus @default(ACTIVE)
+  admissionYear  Int
+  /// Учебный план года набора, по которому формируется ИУП (F-IEP-01)
+  curriculumId   String?
+  /// Дополнительная образовательная программа (Minor), ГОСО п. 12
+  minorProgramId String?
+  /// Освоено кредитов накопительно — обновляется при закрытии ведомости
+  creditsEarned  Decimal       @default(0) @db.Decimal(6, 2)
   /// Внешний идентификатор в АИС Platonus
-  platonusId    String?       @unique
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  platonusId     String?       @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  program      EducationProgram @relation(fields: [programId], references: [id], onDelete: Restrict)
-  group        StudyGroup?      @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  advisor      TeacherProfile?  @relation("AdvisorStudents", fields: [advisorId], references: [id], onDelete: SetNull)
-  enrollments  Enrollment[]
-  progress     Progress[]
-  quizAttempts QuizAttempt[]
-  submissions  Submission[]
-  grades       Grade[]
-  periodGrades PeriodGrade[]
-  gpaRecords   GpaRecord[]
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program          EducationProgram       @relation(fields: [programId], references: [id], onDelete: Restrict)
+  minorProgram     EducationProgram?      @relation("MinorStudents", fields: [minorProgramId], references: [id], onDelete: SetNull)
+  curriculum       Curriculum?            @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+  group            StudyGroup?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  advisor          TeacherProfile?        @relation("AdvisorStudents", fields: [advisorId], references: [id], onDelete: SetNull)
+  ieps             Iep[]
+  memberships      GroupMembership[]
+  statusHistory    StudentStatusHistory[]
+  staffAssignments StaffAssignment[]
+  enrollments      Enrollment[]
+  progress         Progress[]
+  quizAttempts     QuizAttempt[]
+  submissions      Submission[]
+  grades           Grade[]
+  periodGrades     PeriodGrade[]
+  gpaRecords       GpaRecord[]
 
   @@index([programId])
   @@index([groupId])
@@ -486,24 +515,34 @@ model TeacherProfile {
   department Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   courses    CourseTeacher[]
   advisees   StudentProfile[] @relation("AdvisorStudents")
+  curated    StudyGroup[]     @relation("CuratedGroups")
 
   @@index([departmentId])
   @@map("teacher_profiles")
 }
 
 model StudyGroup {
-  id         String       @id @default(cuid())
-  programId  String
-  name       String
-  studyYear  Int
-  language   LanguageCode
-  studyForm  StudyForm    @default(DISTANCE)
-  platonusId String?      @unique
-  isActive   Boolean      @default(true)
-  createdAt  DateTime     @default(now())
+  id            String       @id @default(cuid())
+  programId     String
+  name          String
+  studyYear     Int
+  language      LanguageCode
+  studyForm     StudyForm    @default(DISTANCE)
+  /// Год набора: вместе с ним группа привязывается к версии учебного плана
+  admissionYear Int?
+  curriculumId  String?
+  /// Текущий куратор; история назначений — в StaffAssignment (F-GRP-02)
+  curatorId     String?
+  platonusId    String?      @unique
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
 
-  program  EducationProgram @relation(fields: [programId], references: [id], onDelete: Restrict)
-  students StudentProfile[]
+  program     EducationProgram  @relation(fields: [programId], references: [id], onDelete: Restrict)
+  curriculum  Curriculum?       @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+  curator     TeacherProfile?   @relation("CuratedGroups", fields: [curatorId], references: [id], onDelete: SetNull)
+  students    StudentProfile[]
+  memberships GroupMembership[]
+  assignments StaffAssignment[]
 
   @@unique([programId, name])
   @@index([programId])
@@ -553,6 +592,7 @@ model Discipline {
   hourNorms      WorkTypeNorm[]
   gradeConfig    GradeConfig?
   slotOptions    CurriculumSlotOption[]
+  iepItems       IepItem[]
 
   @@index([departmentId])
   @@index([programId])
@@ -676,21 +716,34 @@ model Syllabus {
   @@map("syllabi")
 }
 
+/// Регистрация обучающегося на реализацию дисциплины (F-IEP-05…07).
+/// Курс здесь играет роль course_offering эталонной схемы: дисциплина
+/// в конкретном академическом периоде.
 model Enrollment {
-  id          String    @id @default(cuid())
+  id          String             @id @default(cuid())
   courseId    String
   studentId   String
-  enrolledAt  DateTime  @default(now())
+  /// Строка ИУП, которую закрывает регистрация; null — регистрация
+  /// заведена вне ИУП (импорт, ручное действие офиса Регистратора)
+  iepItemId   String?
+  status      RegistrationStatus @default(REGISTERED)
+  /// Номер попытки: повторное изучение после F даёт вторую (R-16)
+  attemptNo   Int                @default(1)
+  /// Позиция в листе ожидания, если квота исчерпана
+  waitlistPos Int?
+  enrolledAt  DateTime           @default(now())
   /// Отчисленные с курса сохраняются с датой отмены
   cancelledAt DateTime?
   platonusId  String?
-  source      String    @default("manual") // manual | xlsx | platonus
+  source      String             @default("manual") // manual | xlsx | platonus | iep
 
   course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  iepItem IepItem?       @relation(fields: [iepItemId], references: [id], onDelete: SetNull)
 
-  @@unique([courseId, studentId])
+  @@unique([courseId, studentId, attemptNo])
   @@index([studentId])
+  @@index([courseId, status])
   @@map("enrollments")
 }
 
@@ -1576,6 +1629,9 @@ model Curriculum {
   modules     CurriculumModule[]
   slots       CurriculumSlot[]
   validations CurriculumValidation[]
+  ieps        Iep[]
+  groups      StudyGroup[]
+  students    StudentProfile[]
 
   @@unique([programId, admissionYear, version, studyForm])
   @@index([programId, status])
@@ -1648,6 +1704,7 @@ model CurriculumSlot {
   curriculum Curriculum             @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
   module     CurriculumModule?      @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   options    CurriculumSlotOption[]
+  iepItems   IepItem[]
 
   @@index([curriculumId, cycle, component])
   @@map("curriculum_slots")
@@ -1688,4 +1745,239 @@ model CurriculumValidation {
 
   @@index([curriculumId, runAt])
   @@map("curriculum_validations")
+}
+
+// ═══════ Академический календарь, группы, ИУП — этап 3 (разделы 4.3–4.5) ═══
+//
+// О денормализации. У StudentProfile остаются поля groupId и advisorId,
+// а у StudyGroup — curatorId: это «текущее» значение, на которое опирается
+// уже работающий код. История живёт рядом — в GroupMembership и
+// StaffAssignment, и обновляется теми же действиями. Так требование
+// F-GRP-02 «с периодом действия и историей» выполняется, а существующие
+// запросы не переписываются.
+
+/// Вид окна регистрации (F-ACAD-03)
+enum RegistrationWindowKind {
+  MAIN // основная регистрация
+  ADD_DROP // добавление и удаление дисциплин
+  SUMMER // летний семестр
+  RETAKE // повторное изучение при оценке F
+}
+
+/// Обозначения графика учебного процесса (F-ACAD-02)
+enum CalendarEventKind {
+  THEORY // теоретическое обучение
+  EXAM_SESSION // экзаменационная сессия
+  PRACTICE // профессиональная практика
+  VACATION // каникулы
+  FINAL_CERT // итоговая аттестация
+  SUMMER_TERM // летний семестр
+  HOLIDAY // праздничные дни
+}
+
+/// Роли, назначаемые на группу, студента, кафедру или факультет (F-GRP-02)
+enum StaffAssignmentKind {
+  CURATOR // куратор группы
+  ADVISOR // эдвайзер закреплённых студентов
+  DEAN // декан факультета
+  HEAD_DEPT // заведующий кафедрой
+  PRACTICE_LEAD // руководитель практики
+  THESIS_SUPERVISOR // научный руководитель
+}
+
+/// Маршрут утверждения ИУП: студент → эдвайзер → офис Регистратора (F-IEP-04)
+enum IepStatus {
+  DRAFT // студент формирует
+  SUBMITTED // отправлен эдвайзеру
+  APPROVED // согласован эдвайзером
+  REJECTED // возвращён с комментарием
+  CONFIRMED // зафиксирован офисом Регистратора
+}
+
+/// Состояние регистрации на реализацию дисциплины (F-IEP-05…07)
+enum RegistrationStatus {
+  PENDING // заявлена, ожидает открытия периода
+  REGISTERED // зарегистрирован
+  WAITLISTED // лист ожидания: квота исчерпана
+  DROPPED // снят в окне add/drop
+  COMPLETED // дисциплина освоена
+  FAILED // не освоена, требуется повторное изучение
+  RETAKE // повторное изучение
+}
+
+/// Основание изменения статуса обучающегося (F-GRP-05)
+enum StudentStatusReason {
+  ACADEMIC_FAILURE // академическая неуспеваемость
+  INTEGRITY // нарушение академической честности
+  UNPAID // неоплата обучения
+  OWN_WILL // по собственному желанию
+  HEALTH // по состоянию здоровья
+  MILITARY // призыв на воинскую службу
+  CHILD // отпуск по уходу за ребёнком
+  TRANSFER // перевод
+  COMPLETION // завершение обучения
+  OTHER
+}
+
+/// График учебного процесса: раздел I печатной формы плана (F-ACAD-02)
+model CalendarEvent {
+  id        String            @id @default(cuid())
+  periodId  String
+  kind      CalendarEventKind
+  /// К какому курсу относится (I–IV); null — ко всем
+  courseNo  Int?
+  startDate DateTime          @db.Date
+  endDate   DateTime          @db.Date
+  note      String?
+  createdAt DateTime          @default(now())
+
+  period AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@index([periodId, kind])
+  @@map("calendar_events")
+}
+
+/// Окно регистрации на дисциплины (F-ACAD-03).
+/// Отдельная сущность, а не пара дат у периода: основная регистрация,
+/// add/drop и летний семестр открываются в разное время и с разными
+/// лимитами кредитов.
+model RegistrationWindow {
+  id         String                 @id @default(cuid())
+  periodId   String
+  kind       RegistrationWindowKind @default(MAIN)
+  opensAt    DateTime
+  closesAt   DateTime
+  /// Лимиты кредитов на период; null — ограничение не задано
+  minCredits Int?
+  maxCredits Int?
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+
+  period AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@unique([periodId, kind])
+  @@map("registration_windows")
+}
+
+/// История статусов обучающегося с основанием и приказом (F-GRP-05)
+model StudentStatusHistory {
+  id          String               @id @default(cuid())
+  studentId   String
+  status      StudentStatus
+  reasonCode  StudentStatusReason?
+  reasonText  String?              @db.Text
+  /// Номер и дата приказа
+  orderNo     String?
+  orderDate   DateTime?            @db.Date
+  startsOn    DateTime             @db.Date
+  endsOn      DateTime?            @db.Date
+  createdById String?
+  createdAt   DateTime             @default(now())
+
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdBy User?          @relation("StatusHistoryAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([studentId, startsOn])
+  @@map("student_status_history")
+}
+
+/// История принадлежности к академической группе (F-GRP-04)
+model GroupMembership {
+  id        String    @id @default(cuid())
+  groupId   String
+  studentId String
+  joinedOn  DateTime  @default(now()) @db.Date
+  /// null — текущая группа
+  leftOn    DateTime? @db.Date
+  reason    String?
+
+  group   StudyGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, leftOn])
+  @@index([groupId, leftOn])
+  @@map("group_memberships")
+}
+
+/// Назначение куратора, эдвайзера и других ролей с периодом действия (F-GRP-02)
+model StaffAssignment {
+  id           String              @id @default(cuid())
+  userId       String
+  kind         StaffAssignmentKind
+  /// Область действия: заполняется ровно то, к чему относится назначение
+  groupId      String?
+  studentId    String?
+  departmentId String?
+  facultyId    String?
+  validFrom    DateTime            @default(now()) @db.Date
+  validTo      DateTime?           @db.Date
+  createdById  String?
+  createdAt    DateTime            @default(now())
+
+  user      User            @relation("StaffAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  group     StudyGroup?     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student   StudentProfile? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdBy User?           @relation("StaffAssignmentAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([userId, kind])
+  @@index([groupId, kind, validTo])
+  @@index([studentId, kind, validTo])
+  @@map("staff_assignments")
+}
+
+/// Индивидуальный учебный план студента на учебный год (ГОСО, п. 2 пп. 8)
+model Iep {
+  id             String    @id @default(cuid())
+  studentId      String
+  academicYearId String
+  curriculumId   String
+  status         IepStatus @default(DRAFT)
+  totalCredits   Decimal   @default(0) @db.Decimal(6, 2)
+  submittedAt    DateTime?
+  /// Эдвайзер, которому ИУП отправлен на согласование
+  advisorId      String?
+  advisorComment String?   @db.Text
+  approvedById   String?
+  approvedAt     DateTime?
+  /// Фиксация офисом Регистратора — последний шаг маршрута (F-IEP-04)
+  confirmedById  String?
+  confirmedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  curriculum   Curriculum     @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
+  advisor      User?          @relation("IepAdvisor", fields: [advisorId], references: [id], onDelete: SetNull)
+  approvedBy   User?          @relation("IepApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  confirmedBy  User?          @relation("IepConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+  items        IepItem[]
+
+  @@unique([studentId, academicYearId])
+  @@index([status])
+  @@map("ieps")
+}
+
+/// Строка ИУП: выбранная дисциплина под позицию учебного плана
+model IepItem {
+  id           String   @id @default(cuid())
+  iepId        String
+  slotId       String
+  disciplineId String
+  /// Порядковый семестр обучения (1..N), а не семестр внутри года
+  termNo       Int
+  credits      Decimal  @db.Decimal(5, 2)
+  /// Повторное изучение после оценки F (R-16)
+  isRetake     Boolean  @default(false)
+  isMinor      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  iep           Iep            @relation(fields: [iepId], references: [id], onDelete: Cascade)
+  slot          CurriculumSlot @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  discipline    Discipline     @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  registrations Enrollment[]
+
+  @@unique([iepId, slotId, disciplineId])
+  @@index([iepId, termNo])
+  @@map("iep_items")
 }

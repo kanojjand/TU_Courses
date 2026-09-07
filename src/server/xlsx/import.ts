@@ -409,18 +409,23 @@ export async function importEnrollments(
         continue;
       }
 
+      const key = {
+        courseId: course.id,
+        studentId: user.studentProfile.id,
+        attemptNo: 1,
+      };
       const existing = await prisma.enrollment.findUnique({
-        where: { courseId_studentId: { courseId: course.id, studentId: user.studentProfile.id } },
+        where: { courseId_studentId_attemptNo: key },
       });
 
       await prisma.enrollment.upsert({
-        where: { courseId_studentId: { courseId: course.id, studentId: user.studentProfile.id } },
+        where: { courseId_studentId_attemptNo: key },
         create: {
           courseId: course.id,
           studentId: user.studentProfile.id,
           source: 'xlsx',
         },
-        update: { cancelledAt: null },
+        update: { cancelledAt: null, status: 'REGISTERED' },
       });
 
       if (existing) result.updated++;

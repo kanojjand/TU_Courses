@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/ui/alert';
 import { fmtDateTime, fmtGpa } from '@/lib/utils';
+import { iepQueue } from '@/server/iep';
+import { IepQueue } from '@/components/advisor/iep-queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,12 +103,36 @@ export default async function AdvisorPage({
 
   const withRisk = rows.filter((r) => r.summary.totalItems > 0 && r.summary.percent < 25).length;
 
+  // F-IEP-04: ИУП закреплённых обучающихся, ожидающие согласования.
+  // Отбор идёт по эдвайзеру, назначенному в самом ИУП: студент мог сменить
+  // эдвайзера после отправки, и план должен остаться у того, кому отправлен.
+  const ieps = await iepQueue({ advisorUserId: user.id });
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <h1 className="text-2xl font-bold">Закреплённые обучающиеся</h1>
       <p className="mt-1 text-sm text-fg-muted">
         Просмотр успеваемости подопечных. Изменение оценок выполняется преподавателем курса.
       </p>
+
+      <div className="mt-6">
+        <IepQueue
+          mode="advisor"
+          title="Индивидуальные учебные планы"
+          rows={ieps.map((i) => ({
+            id: i.id,
+            status: i.status,
+            totalCredits: Number(i.totalCredits),
+            submittedAt: i.submittedAt?.toISOString() ?? null,
+            academicYearName: i.academicYear.name,
+            studentName: `${i.student.user.lastNameRu} ${i.student.user.firstNameRu}`,
+            studyYear: i.student.studyYear,
+            groupName: i.student.group?.name ?? null,
+            programCode: i.student.program.code,
+            itemCount: i._count.items,
+          }))}
+        />
+      </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>

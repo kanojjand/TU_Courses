@@ -135,12 +135,15 @@ export async function requireEnrolledStudent(
   const user = await requireUser();
   if (!user.studentProfileId) throw new AccessError('Профиль обучающегося не найден.');
 
-  const enrollment = await prisma.enrollment.findUnique({
-    where: { courseId_studentId: { courseId, studentId: user.studentProfileId } },
+  // Повторное изучение даёт вторую регистрацию на тот же курс (R-16),
+  // поэтому берём действующую, а не единственную
+  const enrollment = await prisma.enrollment.findFirst({
+    where: { courseId, studentId: user.studentProfileId, cancelledAt: null },
     include: { course: { select: { status: true } } },
+    orderBy: { attemptNo: 'desc' },
   });
 
-  if (!enrollment || enrollment.cancelledAt) {
+  if (!enrollment) {
     throw new AccessError('Вы не зарегистрированы на эту дисциплину.');
   }
 
@@ -164,11 +167,11 @@ export async function canViewCourseContent(courseId: string): Promise<boolean> {
     if (link) return true;
   }
   if (user.studentProfileId) {
-    const enrollment = await prisma.enrollment.findUnique({
-      where: { courseId_studentId: { courseId, studentId: user.studentProfileId } },
-      select: { cancelledAt: true },
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { courseId, studentId: user.studentProfileId, cancelledAt: null },
+      select: { id: true },
     });
-    if (enrollment && !enrollment.cancelledAt) return true;
+    if (enrollment) return true;
   }
   return false;
 }

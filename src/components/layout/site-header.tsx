@@ -33,6 +33,7 @@ export async function SiteHeader({
       links.unshift(
         { href: '/dashboard', label: t('dashboard') },
         { href: '/my/courses', label: t('myCourses') },
+        { href: '/my/iep', label: t('iep') },
         { href: '/my/grades', label: t('grades') }
       );
     }

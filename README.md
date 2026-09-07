@@ -45,6 +45,7 @@ npm run db:push               # схема
 npm run db:rls                # закрыть таблицы от анонимного ключа Supabase
 npm run db:seed               # справочники + демонстрационные данные
 npm run db:seed:curriculum    # профили ГОСО + учебный план 6В01601
+npm run db:seed:iep           # учебный год, группа, обучающиеся, окна регистрации
 npm run dev
 ```
 
@@ -104,13 +105,14 @@ npm run dev
 | `npm run dev` | Разработка |
 | `npm run build` | Сборка (включает `prisma generate`) |
 | `npm run typecheck` | Проверка типов |
-| `npm run test` | Юнит-тесты доменной логики (89 тестов) |
+| `npm run test` | Юнит-тесты доменной логики (116 тестов) |
 | `npm run verify` | Типы + тесты + сборка |
 | `npm run db:migrate` | Создание и применение миграции |
 | `npm run db:deploy` | Применение миграций (production) |
 | `npm run db:seed` | Загрузка справочников и демо-данных |
 | `npm run db:seed:beta` | Учётные записи для тестирования, по одной на роль |
 | `npm run db:seed:curriculum` | Профили ГОСО и пилотный учебный план 6В01601 с прогоном валидатора |
+| `npm run db:seed:iep` | Учебный год, окна регистрации, группа и обучающиеся для сценария ИУП |
 | `npm run db:studio` | Просмотр БД |
 | `npm run db:push` | Создание схемы без файлов миграций (используется при первом деплое) |
 | `npm run db:rls` | Включение RLS на всех таблицах — обязательно после `db:push` |
