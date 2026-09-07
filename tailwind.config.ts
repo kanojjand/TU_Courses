@@ -18,6 +18,9 @@ const config: Config = {
         fg: 'rgb(var(--c-fg) / <alpha-value>)',
         'fg-muted': 'rgb(var(--c-fg-muted) / <alpha-value>)',
         brand: 'rgb(var(--c-brand) / <alpha-value>)',
+        // Точный красный знака Tashenev University — для самого логотипа
+        // и крупных витринных акцентов, где цвет обязан совпасть с брендом
+        'brand-vivid': 'rgb(var(--c-brand-vivid) / <alpha-value>)',
         'brand-fg': 'rgb(var(--c-brand-fg) / <alpha-value>)',
         'brand-soft': 'rgb(var(--c-brand-soft) / <alpha-value>)',
         success: 'rgb(var(--c-success) / <alpha-value>)',

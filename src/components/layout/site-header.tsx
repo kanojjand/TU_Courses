@@ -21,6 +21,9 @@ export async function SiteHeader({
 
   const links: { href: string; label: string }[] = [
     { href: '/courses', label: t('catalog') },
+    // F-CUR-11: каталог элективных дисциплин открыт всем — студент выбирает
+    // дисциплины до того, как сядет за ИУП
+    { href: '/electives', label: t('electives') },
     { href: '/about', label: t('about') },
     { href: '/support', label: t('support') },
   ];

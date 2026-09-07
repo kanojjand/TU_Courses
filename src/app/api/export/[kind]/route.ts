@@ -9,6 +9,7 @@ import {
   exportInvalidCoursesReport,
   exportPerformanceReport,
 } from '@/server/xlsx/export';
+import { exportCurriculum } from '@/server/xlsx/curriculum-export';
 
 /** F-A-06, F-T-12. Экспорт ведомостей и отчётов в XLSX. */
 
@@ -77,6 +78,17 @@ export async function GET(
           return NextResponse.json({ error: 'Не указан periodId.' }, { status: 400 });
         }
         payload = await exportForPlatonus(periodId);
+        break;
+      }
+
+      // F-CUR-09: выгрузка учебного плана в утверждённой форме
+      case 'curriculum': {
+        await requirePermission('curriculum:view');
+        const curriculumId = url.searchParams.get('id');
+        if (!curriculumId) {
+          return NextResponse.json({ error: 'Не указан id учебного плана.' }, { status: 400 });
+        }
+        payload = await exportCurriculum(curriculumId);
         break;
       }
 

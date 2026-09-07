@@ -54,6 +54,10 @@ export type Permission =
   | 'learn:enroll'
   | 'learn:take_quiz'
   | 'learn:submit_assignment'
+  // Учебные планы (раздел 4.2)
+  | 'curriculum:view'
+  | 'curriculum:edit'
+  | 'curriculum:approve'
   // Администрирование
   | 'user:manage'
   | 'user:import'
@@ -95,11 +99,19 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
   // Как преподаватель, но без права публикации курса и утверждения итоговых оценок
   TUTOR: T.filter((p) => p !== 'course:publish' && p !== 'grade:finalize'),
 
-  // Просмотр прогресса закреплённых студентов, без права редактирования оценок
-  ADVISOR: ['progress:view_advisees', 'grade:view_course', 'report:view'],
+  // Просмотр прогресса закреплённых студентов, без права редактирования оценок.
+  // Учебный план видит целиком: без него не проконсультировать по выбору дисциплин.
+  ADVISOR: ['progress:view_advisees', 'grade:view_course', 'report:view', 'curriculum:view'],
 
-  // Проверка и согласование курсов перед публикацией
-  METHODIST: ['course:review', 'course:view_content', 'report:view', 'report:export'],
+  // Согласование курсов перед публикацией, учебные планы и валидатор ГОСО
+  METHODIST: [
+    'course:review',
+    'course:view_content',
+    'report:view',
+    'report:export',
+    'curriculum:view',
+    'curriculum:edit',
+  ],
 
   REGISTRAR: [
     'course:view_content',
@@ -115,6 +127,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     'report:export',
     'integration:approve_final',
     'pd:view_full_iin',
+    'curriculum:view',
+    'curriculum:approve',
   ],
 
   ADMIN: [
@@ -133,6 +147,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     'settings:manage',
     'integration:manage',
     'pd:view_full_iin',
+    'curriculum:view',
   ],
 
   PROCTOR: ['proctoring:observe'],
@@ -180,6 +195,7 @@ export function adminSectionsFor(user: Pick<SessionUser, 'roles'> | null): strin
   const sections: string[] = [];
   if (can(user, 'user:manage')) sections.push('users');
   if (can(user, 'reference:manage')) sections.push('programs', 'disciplines');
+  if (can(user, 'curriculum:view')) sections.push('curricula');
   if (can(user, 'period:manage')) sections.push('periods');
   if (can(user, 'enrollment:manage')) sections.push('enrollments');
   if (canAny(user, ['course:review', 'course:edit_any'])) sections.push('courses');

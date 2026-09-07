@@ -10,8 +10,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")   // пул (pgbouncer, 6543) — приложение
-  directUrl = env("DIRECT_URL")     // прямое (5432) — миграции
+  url       = env("DATABASE_URL") // пул (pgbouncer, 6543) — приложение
+  directUrl = env("DIRECT_URL") // прямое (5432) — миграции
 }
 
 // ─────────────────────────── Перечисления ─────────────────────────────────
@@ -44,6 +44,35 @@ enum DisciplineCycle {
   OOD // общеобразовательные дисциплины
   BD // базовые дисциплины
   PD // профилирующие дисциплины
+  IA // итоговая аттестация (позиция учебного плана, не дисциплина справочника)
+  DVO // дополнительные виды обучения
+}
+
+/// Форма итогового контроля позиции учебного плана (ГОСО, п. 6; F-CUR-02)
+enum ControlForm {
+  EXAM // экзамен
+  STATE_EXAM // государственный экзамен (История Казахстана, R-11)
+  CREDIT_TEST // зачёт / дифференцированный зачёт
+  COURSE_WORK // курсовая работа (проект)
+  PRACTICE_REPORT // защита отчёта по практике
+  THESIS_DEFENSE // защита дипломной работы (проекта)
+  COMPLEX_EXAM // комплексный экзамен
+}
+
+/// Маршрут согласования учебного плана (F-CUR-01)
+enum CurriculumStatus {
+  DRAFT // черновик
+  SUBMITTED // на согласовании
+  APPROVED // утверждён
+  REJECTED // возвращён на доработку
+  ARCHIVED // архив
+}
+
+/// Кто вправе менять содержание обязательной дисциплины (ГОСО, п. 4)
+enum ContentEditability {
+  NONE // только по типовой учебной программе
+  HALF // вуз изменяет до 50 %
+  FULL // вуз определяет самостоятельно
 }
 
 enum DisciplineComponent {
@@ -236,7 +265,7 @@ model Department {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  faculty     Faculty           @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  faculty     Faculty            @relation(fields: [facultyId], references: [id], onDelete: Restrict)
   programs    EducationProgram[]
   disciplines Discipline[]
   teachers    TeacherProfile[]
@@ -247,27 +276,35 @@ model Department {
 
 /// Образовательная программа. Объём в кредитах нормируется ГОСО (Приказ № 2).
 model EducationProgram {
-  id           String       @id @default(cuid())
-  departmentId String
+  id            String       @id @default(cuid())
+  departmentId  String
   /// Код по классификатору специальностей, напр. 6B06103
-  code         String       @unique
-  nameKk       String
-  nameRu       String
-  nameEn       String
-  level        StudyLevel
-  language     LanguageCode
+  code          String       @unique
+  nameKk        String
+  nameRu        String
+  nameEn        String
+  level         StudyLevel
+  language      LanguageCode
   /// Нормативный срок обучения, лет
   durationYears Int
   /// Общий объём программы в академических кредитах
-  totalCredits Int
-  isActive     Boolean      @default(true)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  totalCredits  Int
+  /// Профиль ГОСО, по которому валидируется учебный план (F-ORG-04).
+  /// Необязателен: программы, заведённые до появления модуля учебных планов,
+  /// профиль не имеют, и валидатор для них не запускается.
+  gosoProfileId String?
+  /// Подготовка педагога по двум смежным предметам → профиль на 300 кредитов
+  isDualSubject Boolean      @default(false)
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   department  Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  gosoProfile GosoProfile?     @relation(fields: [gosoProfileId], references: [id], onDelete: SetNull)
   disciplines Discipline[]
   students    StudentProfile[]
   groups      StudyGroup[]
+  curricula   Curriculum[]
 
   @@index([departmentId])
   @@map("education_programs")
@@ -289,24 +326,24 @@ model AcademicYear {
 
 /// Академический период — Приказ № 152
 model AcademicPeriod {
-  id             String       @id @default(cuid())
-  academicYearId String
-  name           String
-  type           PeriodType   @default(SEMESTER)
+  id                String       @id @default(cuid())
+  academicYearId    String
+  name              String
+  type              PeriodType   @default(SEMESTER)
   /// Порядковый номер в учебном году (1, 2, 3)
-  ordinal        Int
-  startDate      DateTime     @db.Date
-  endDate        DateTime     @db.Date
-  registrationStart DateTime  @db.Date
-  registrationEnd   DateTime  @db.Date
-  examStart      DateTime     @db.Date
-  examEnd        DateTime     @db.Date
-  status         PeriodStatus @default(PLANNED)
-  isCurrent      Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  ordinal           Int
+  startDate         DateTime     @db.Date
+  endDate           DateTime     @db.Date
+  registrationStart DateTime     @db.Date
+  registrationEnd   DateTime     @db.Date
+  examStart         DateTime     @db.Date
+  examEnd           DateTime     @db.Date
+  status            PeriodStatus @default(PLANNED)
+  isCurrent         Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
-  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  academicYear AcademicYear  @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
   courses      Course[]
   periodGrades PeriodGrade[]
 
@@ -318,50 +355,53 @@ model AcademicPeriod {
 // ═════════════════════════════════ Люди ════════════════════════════════════
 
 model User {
-  id            String       @id @default(cuid())
+  id                 String       @id @default(cuid())
   /// ИИН в зашифрованном виде (AES-256-GCM). Раздел 6.3 ТЗ.
-  iinEncrypted  String?
+  iinEncrypted       String?
   /// Детерминированный хеш ИИН — для поиска и контроля уникальности без расшифровки
-  iinHash       String?      @unique
-  email         String       @unique
-  passwordHash  String?
+  iinHash            String?      @unique
+  email              String       @unique
+  passwordHash       String?
   /// ФИО на трёх языках (F-L-03)
-  lastNameKk    String
-  firstNameKk   String
-  middleNameKk  String?
-  lastNameRu    String
-  firstNameRu   String
-  middleNameRu  String?
-  lastNameEn    String
-  firstNameEn   String
-  middleNameEn  String?
-  phone         String?
-  avatarKey     String?
-  status        UserStatus   @default(ACTIVE)
+  lastNameKk         String
+  firstNameKk        String
+  middleNameKk       String?
+  lastNameRu         String
+  firstNameRu        String
+  middleNameRu       String?
+  lastNameEn         String
+  firstNameEn        String
+  middleNameEn       String?
+  phone              String?
+  avatarKey          String?
+  status             UserStatus   @default(ACTIVE)
   /// Язык интерфейса (F-L-02); по умолчанию казахский (F-L-01)
-  uiLanguage    LanguageCode @default(KK)
-  emailVerified DateTime?
-  lastLoginAt   DateTime?
-  failedLogins  Int          @default(0)
-  lockedUntil   DateTime?
-  mustChangePassword Boolean @default(false)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  uiLanguage         LanguageCode @default(KK)
+  emailVerified      DateTime?
+  lastLoginAt        DateTime?
+  failedLogins       Int          @default(0)
+  lockedUntil        DateTime?
+  mustChangePassword Boolean      @default(false)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
-  roles          UserRole[]
-  studentProfile StudentProfile?
-  teacherProfile TeacherProfile?
-  sessions       Session[]
-  accounts       Account[]
-  consents       Consent[]
-  activityLogs   ActivityLog[]
-  timeSessions   TimeSession[]
-  auditLogs      AuditLog[]        @relation("AuditActor")
-  notifications  Notification[]
-  gradesGiven    Grade[]           @relation("GradedBy")
-  submissionsReviewed Submission[] @relation("ReviewedBy")
-  closedSheets   GradeSheet[]      @relation("ClosedBy")
-  announcements  Announcement[]
+  roles               UserRole[]
+  studentProfile      StudentProfile?
+  teacherProfile      TeacherProfile?
+  sessions            Session[]
+  accounts            Account[]
+  consents            Consent[]
+  activityLogs        ActivityLog[]
+  timeSessions        TimeSession[]
+  auditLogs           AuditLog[]             @relation("AuditActor")
+  notifications       Notification[]
+  gradesGiven         Grade[]                @relation("GradedBy")
+  submissionsReviewed Submission[]           @relation("ReviewedBy")
+  closedSheets        GradeSheet[]           @relation("ClosedBy")
+  announcements       Announcement[]
+  curriculaCreated    Curriculum[]           @relation("CurriculumAuthor")
+  curriculaApproved   Curriculum[]           @relation("CurriculumApprover")
+  validationRuns      CurriculumValidation[] @relation("ValidationRunner")
 
   @@index([status])
   @@map("users")
@@ -381,10 +421,10 @@ model Role {
 }
 
 model UserRole {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   roleId    String
-  grantedAt DateTime @default(now())
+  grantedAt DateTime  @default(now())
   grantedBy String?
   expiresAt DateTime?
 
@@ -397,33 +437,33 @@ model UserRole {
 }
 
 model StudentProfile {
-  id           String        @id @default(cuid())
-  userId       String        @unique
-  programId    String
-  groupId      String?
-  advisorId    String?
+  id            String        @id @default(cuid())
+  userId        String        @unique
+  programId     String
+  groupId       String?
+  advisorId     String?
   /// Курс обучения (1..N)
-  studyYear    Int
-  studyForm    StudyForm     @default(DISTANCE)
-  language     LanguageCode
-  status       StudentStatus @default(ACTIVE)
+  studyYear     Int
+  studyForm     StudyForm     @default(DISTANCE)
+  language      LanguageCode
+  status        StudentStatus @default(ACTIVE)
   admissionYear Int
   /// Внешний идентификатор в АИС Platonus
-  platonusId   String?       @unique
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  platonusId    String?       @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  program     EducationProgram @relation(fields: [programId], references: [id], onDelete: Restrict)
-  group       StudyGroup?      @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  advisor     TeacherProfile?  @relation("AdvisorStudents", fields: [advisorId], references: [id], onDelete: SetNull)
-  enrollments Enrollment[]
-  progress    Progress[]
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program      EducationProgram @relation(fields: [programId], references: [id], onDelete: Restrict)
+  group        StudyGroup?      @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  advisor      TeacherProfile?  @relation("AdvisorStudents", fields: [advisorId], references: [id], onDelete: SetNull)
+  enrollments  Enrollment[]
+  progress     Progress[]
   quizAttempts QuizAttempt[]
-  submissions Submission[]
-  grades      Grade[]
+  submissions  Submission[]
+  grades       Grade[]
   periodGrades PeriodGrade[]
-  gpaRecords  GpaRecord[]
+  gpaRecords   GpaRecord[]
 
   @@index([programId])
   @@index([groupId])
@@ -432,15 +472,15 @@ model StudentProfile {
 }
 
 model TeacherProfile {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  departmentId String
-  position     String
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  departmentId   String
+  position       String
   academicDegree String?
   academicTitle  String?
-  platonusId   String?  @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  platonusId     String?  @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   department Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
@@ -452,15 +492,15 @@ model TeacherProfile {
 }
 
 model StudyGroup {
-  id         String   @id @default(cuid())
+  id         String       @id @default(cuid())
   programId  String
   name       String
   studyYear  Int
   language   LanguageCode
-  studyForm  StudyForm @default(DISTANCE)
-  platonusId String?   @unique
-  isActive   Boolean   @default(true)
-  createdAt  DateTime  @default(now())
+  studyForm  StudyForm    @default(DISTANCE)
+  platonusId String?      @unique
+  isActive   Boolean      @default(true)
+  createdAt  DateTime     @default(now())
 
   program  EducationProgram @relation(fields: [programId], references: [id], onDelete: Restrict)
   students StudentProfile[]
@@ -474,39 +514,45 @@ model StudyGroup {
 
 /// Дисциплина учебного плана. Содержимым наполняется не она, а Course.
 model Discipline {
-  id             String              @id @default(cuid())
-  departmentId   String
-  programId      String?
-  code           String              @unique
-  nameKk         String
-  nameRu         String
-  nameEn         String
-  descriptionKk  String?             @db.Text
-  descriptionRu  String?             @db.Text
-  descriptionEn  String?             @db.Text
+  id                 String              @id @default(cuid())
+  departmentId       String
+  programId          String?
+  code               String              @unique
+  nameKk             String
+  nameRu             String
+  nameEn             String
+  descriptionKk      String?             @db.Text
+  descriptionRu      String?             @db.Text
+  descriptionEn      String?             @db.Text
   /// Объём в академических кредитах. 1 кредит = 30 академических часов (ГОСО, п. 29/56/102)
-  credits        Int
-  cycle          DisciplineCycle
-  component      DisciplineComponent
-  level          StudyLevel
-  language       LanguageCode
-  gradingProfile GradingProfile      @default(STANDARD)
+  credits            Int
+  cycle              DisciplineCycle
+  component          DisciplineComponent
+  level              StudyLevel
+  language           LanguageCode
+  gradingProfile     GradingProfile      @default(STANDARD)
   /// Ожидаемые результаты обучения, по одному в строке
-  learningOutcomesKk String?         @db.Text
-  learningOutcomesRu String?         @db.Text
-  learningOutcomesEn String?         @db.Text
-  isActive       Boolean             @default(true)
-  platonusId     String?             @unique
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  learningOutcomesKk String?             @db.Text
+  learningOutcomesRu String?             @db.Text
+  learningOutcomesEn String?             @db.Text
+  isActive           Boolean             @default(true)
+  platonusId         String?             @unique
+  /// Ссылка на обязательную дисциплину ГОСО, если это она (R-04, R-12)
+  gosoMandatoryId    String?
+  /// Позиция плана — профессиональная практика (раздел 2.5)
+  isPractice         Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
-  department   Department        @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  program      EducationProgram? @relation(fields: [programId], references: [id], onDelete: SetNull)
-  courses      Course[]
-  prerequisites  DisciplineLink[] @relation("Target")
-  postrequisites DisciplineLink[] @relation("Source")
-  hourNorms    WorkTypeNorm[]
-  gradeConfig  GradeConfig?
+  department     Department               @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  program        EducationProgram?        @relation(fields: [programId], references: [id], onDelete: SetNull)
+  gosoMandatory  GosoMandatoryDiscipline? @relation(fields: [gosoMandatoryId], references: [id], onDelete: SetNull)
+  courses        Course[]
+  prerequisites  DisciplineLink[]         @relation("Target")
+  postrequisites DisciplineLink[]         @relation("Source")
+  hourNorms      WorkTypeNorm[]
+  gradeConfig    GradeConfig?
+  slotOptions    CurriculumSlotOption[]
 
   @@index([departmentId])
   @@index([programId])
@@ -515,9 +561,9 @@ model Discipline {
 
 /// Пререквизиты и постреквизиты (ребро source → target)
 model DisciplineLink {
-  id       String  @id @default(cuid())
-  sourceId String
-  targetId String
+  id             String  @id @default(cuid())
+  sourceId       String
+  targetId       String
   /// true — target является пререквизитом source
   isPrerequisite Boolean @default(true)
 
@@ -530,13 +576,13 @@ model DisciplineLink {
 
 /// Норматив распределения часов по видам работы (раздел 4.2, вопрос 14.2.2)
 model WorkTypeNorm {
-  id           String     @id @default(cuid())
+  id           String   @id @default(cuid())
   disciplineId String
   workType     WorkType
   /// Доля от общего объёма часов, %
-  sharePercent Decimal    @db.Decimal(5, 2)
+  sharePercent Decimal  @db.Decimal(5, 2)
   /// Допустимое отклонение, процентных пунктов
-  tolerance    Decimal    @default(0) @db.Decimal(5, 2)
+  tolerance    Decimal  @default(0) @db.Decimal(5, 2)
 
   discipline Discipline @relation(fields: [disciplineId], references: [id], onDelete: Cascade)
 
@@ -546,45 +592,45 @@ model WorkTypeNorm {
 
 /// Экземпляр дисциплины в конкретном академическом периоде — наполняется содержимым
 model Course {
-  id           String       @id @default(cuid())
-  disciplineId String
-  periodId     String
+  id              String       @id @default(cuid())
+  disciplineId    String
+  periodId        String
   /// Учебный поток (для нескольких потоков одной дисциплины в одном периоде)
-  streamName   String?
-  slug         String       @unique
-  status       CourseStatus @default(DRAFT)
+  streamName      String?
+  slug            String       @unique
+  status          CourseStatus @default(DRAFT)
   /// Публикация в публичный каталог (F-P-04); по умолчанию скрыт
-  isPublic     Boolean      @default(false)
+  isPublic        Boolean      @default(false)
   /// Краткая аннотация для публичной карточки
-  summaryKk    String?      @db.Text
-  summaryRu    String?      @db.Text
-  summaryEn    String?      @db.Text
-  coverKey     String?
+  summaryKk       String?      @db.Text
+  summaryRu       String?      @db.Text
+  summaryEn       String?      @db.Text
+  coverKey        String?
   /// Запрет скачивания материалов на устройство (вопрос 14.2.10)
-  preventDownload Boolean   @default(true)
-  maxEnrollment Int?
-  submittedAt  DateTime?
-  reviewedAt   DateTime?
-  reviewedById String?
-  reviewComment String?     @db.Text
-  publishedAt  DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  preventDownload Boolean      @default(true)
+  maxEnrollment   Int?
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  reviewedById    String?
+  reviewComment   String?      @db.Text
+  publishedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
-  discipline  Discipline      @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
-  period      AcademicPeriod  @relation(fields: [periodId], references: [id], onDelete: Restrict)
-  teachers    CourseTeacher[]
-  syllabus    Syllabus?
-  modules     Module[]
-  enrollments Enrollment[]
-  questionBank QuestionBank?
-  gradeItems  GradeItem[]
-  gradeSheets GradeSheet[]
-  progress    Progress[]
-  activityLogs ActivityLog[]
+  discipline    Discipline      @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  period        AcademicPeriod  @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  teachers      CourseTeacher[]
+  syllabus      Syllabus?
+  modules       Module[]
+  enrollments   Enrollment[]
+  questionBank  QuestionBank?
+  gradeItems    GradeItem[]
+  gradeSheets   GradeSheet[]
+  progress      Progress[]
+  activityLogs  ActivityLog[]
   announcements Announcement[]
-  gradeConfig GradeConfig?
-  periodGrades PeriodGrade[]
+  gradeConfig   GradeConfig?
+  periodGrades  PeriodGrade[]
 
   @@unique([disciplineId, periodId, streamName])
   @@index([periodId])
@@ -594,14 +640,14 @@ model Course {
 
 /// Назначение преподавателя на курс. Роль «Преподаватель» сама по себе доступа не даёт (раздел 3).
 model CourseTeacher {
-  id        String   @id @default(cuid())
-  courseId  String
-  teacherId String
+  id          String   @id @default(cuid())
+  courseId    String
+  teacherId   String
   /// Ведущий преподаватель курса (утверждает итоговые оценки)
-  isLead    Boolean  @default(false)
+  isLead      Boolean  @default(false)
   /// Тьютор / ассистент — без права публикации и утверждения итогов
-  isAssistant Boolean @default(false)
-  assignedAt DateTime @default(now())
+  isAssistant Boolean  @default(false)
+  assignedAt  DateTime @default(now())
 
   course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
@@ -612,18 +658,18 @@ model CourseTeacher {
 }
 
 model Syllabus {
-  id            String   @id @default(cuid())
-  courseId      String   @unique
-  goals         String?  @db.Text
-  competencies  String?  @db.Text
+  id              String   @id @default(cuid())
+  courseId        String   @unique
+  goals           String?  @db.Text
+  competencies    String?  @db.Text
   /// Тематический план (JSON: недели → темы → часы)
-  thematicPlan  Json?
-  policy        String?  @db.Text
-  gradingCriteria String? @db.Text
-  literature    String?  @db.Text
-  officeHours   String?
-  contactInfo   String?
-  updatedAt     DateTime @updatedAt
+  thematicPlan    Json?
+  policy          String?  @db.Text
+  gradingCriteria String?  @db.Text
+  literature      String?  @db.Text
+  officeHours     String?
+  contactInfo     String?
+  updatedAt       DateTime @updatedAt
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
@@ -631,14 +677,14 @@ model Syllabus {
 }
 
 model Enrollment {
-  id         String   @id @default(cuid())
-  courseId   String
-  studentId  String
-  enrolledAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  courseId    String
+  studentId   String
+  enrolledAt  DateTime  @default(now())
   /// Отчисленные с курса сохраняются с датой отмены
   cancelledAt DateTime?
-  platonusId String?
-  source     String   @default("manual") // manual | xlsx | platonus
+  platonusId  String?
+  source      String    @default("manual") // manual | xlsx | platonus
 
   course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -651,21 +697,21 @@ model Enrollment {
 // ═══════════════════════════ Содержание курса ══════════════════════════════
 
 model Module {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   courseId      String
   titleKk       String?
   titleRu       String?
   titleEn       String?
   /// Заголовок на языке обучения дисциплины (F-L-04)
   title         String
-  description   String?  @db.Text
+  description   String?   @db.Text
   orderIndex    Int
   /// Номер учебной недели, если модуль соответствует неделе
   weekNumber    Int?
-  isPublished   Boolean  @default(true)
+  isPublished   Boolean   @default(true)
   availableFrom DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   course Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
   items  ContentItem[]
@@ -676,34 +722,34 @@ model Module {
 }
 
 model ContentItem {
-  id          String      @id @default(cuid())
-  moduleId    String
-  type        ContentType
-  title       String
-  description String?     @db.Text
-  orderIndex  Int
+  id                   String      @id @default(cuid())
+  moduleId             String
+  type                 ContentType
+  title                String
+  description          String?     @db.Text
+  orderIndex           Int
   /// Плановая трудоёмкость в академических часах — обязательное поле (раздел 4.2)
-  plannedAcademicHours Decimal @db.Decimal(6, 2)
+  plannedAcademicHours Decimal     @db.Decimal(6, 2)
   /// Вид учебной работы
-  workType    WorkType
+  workType             WorkType
   /// Текст лекции (type = TEXT), HTML из Tiptap
-  contentHtml String?     @db.Text
+  contentHtml          String?     @db.Text
   /// Внешняя ссылка (type = LINK) или URL видео (type = VIDEO)
-  externalUrl String?
+  externalUrl          String?
   /// Провайдер видео: youtube | vimeo
-  videoProvider String?
-  videoId     String?
-  videoDurationSec Int?
-  videoThumbnail   String?
+  videoProvider        String?
+  videoId              String?
+  videoDurationSec     Int?
+  videoThumbnail       String?
   /// Доля просмотра/прочтения для засчитывания завершения, %
-  completionThreshold Int @default(80)
-  isPublished Boolean     @default(true)
-  availableFrom DateTime?
-  availableTo   DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  completionThreshold  Int         @default(80)
+  isPublished          Boolean     @default(true)
+  availableFrom        DateTime?
+  availableTo          DateTime?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
 
-  module       Module        @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  module       Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   attachments  Attachment[]
   quiz         Quiz?
   assignment   Assignment?
@@ -750,7 +796,7 @@ model QuestionBank {
   courseId  String   @unique
   createdAt DateTime @default(now())
 
-  course    Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course    Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
   questions Question[]
   topics    QuestionTopic[]
 
@@ -770,27 +816,27 @@ model QuestionTopic {
 }
 
 model Question {
-  id         String             @id @default(cuid())
-  bankId     String
-  topicId    String?
-  type       QuestionType
-  difficulty QuestionDifficulty @default(MEDIUM)
-  text       String             @db.Text
+  id            String             @id @default(cuid())
+  bankId        String
+  topicId       String?
+  type          QuestionType
+  difficulty    QuestionDifficulty @default(MEDIUM)
+  text          String             @db.Text
   /// Пояснение, показываемое после проверки
-  explanation String?           @db.Text
-  imageKey   String?
-  defaultPoints Decimal         @default(1) @db.Decimal(6, 2)
+  explanation   String?            @db.Text
+  imageKey      String?
+  defaultPoints Decimal            @default(1) @db.Decimal(6, 2)
   /// Для SHORT_ANSWER: массив допустимых ответов; для MATCHING/ORDERING — структура
-  payload    Json?
-  isActive   Boolean            @default(true)
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
+  payload       Json?
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
-  bank    QuestionBank    @relation(fields: [bankId], references: [id], onDelete: Cascade)
-  topic   QuestionTopic?  @relation(fields: [topicId], references: [id], onDelete: SetNull)
-  options AnswerOption[]
+  bank          QuestionBank   @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  topic         QuestionTopic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  options       AnswerOption[]
   quizQuestions QuizQuestion[]
-  answers QuizAnswer[]
+  answers       QuizAnswer[]
 
   @@index([bankId])
   @@index([type])
@@ -822,28 +868,28 @@ enum QuizGradingMethod {
 }
 
 model Quiz {
-  id            String  @id @default(cuid())
-  contentItemId String  @unique
+  id                    String              @id @default(cuid())
+  contentItemId         String              @unique
   /// Ограничение по времени, минут; null — без ограничения
-  timeLimitMin  Int?
-  maxAttempts   Int     @default(1)
-  gradingMethod QuizGradingMethod @default(HIGHEST)
+  timeLimitMin          Int?
+  maxAttempts           Int                 @default(1)
+  gradingMethod         QuizGradingMethod   @default(HIGHEST)
   /// Проходной балл, %
-  passingScore  Int     @default(50)
-  shuffleQuestions Boolean @default(true)
-  shuffleOptions   Boolean @default(true)
+  passingScore          Int                 @default(50)
+  shuffleQuestions      Boolean             @default(true)
+  shuffleOptions        Boolean             @default(true)
   /// Немедленный или отложенный показ результата
-  showResultImmediately Boolean @default(true)
-  showCorrectAnswers    Boolean @default(false)
+  showResultImmediately Boolean             @default(true)
+  showCorrectAnswers    Boolean             @default(false)
   /// Случайная выборка из банка вместо ручного отбора
-  randomSelection Boolean @default(false)
-  randomCount     Int?
-  randomTopicIds  String[]
-  randomDifficulty QuestionDifficulty?
-  opensAt       DateTime?
-  closesAt      DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  randomSelection       Boolean             @default(false)
+  randomCount           Int?
+  randomTopicIds        String[]
+  randomDifficulty      QuestionDifficulty?
+  opensAt               DateTime?
+  closesAt              DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
   contentItem ContentItem    @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
   questions   QuizQuestion[]
@@ -868,22 +914,22 @@ model QuizQuestion {
 }
 
 model QuizAttempt {
-  id          String        @id @default(cuid())
-  quizId      String
-  studentId   String
-  attemptNo   Int
-  status      AttemptStatus @default(IN_PROGRESS)
-  startedAt   DateTime      @default(now())
-  submittedAt DateTime?
+  id            String        @id @default(cuid())
+  quizId        String
+  studentId     String
+  attemptNo     Int
+  status        AttemptStatus @default(IN_PROGRESS)
+  startedAt     DateTime      @default(now())
+  submittedAt   DateTime?
   /// Крайний срок с учётом ограничения по времени
-  expiresAt   DateTime?
-  score       Decimal?      @db.Decimal(6, 2)
-  maxScore    Decimal?      @db.Decimal(6, 2)
-  percent     Decimal?      @db.Decimal(5, 2)
+  expiresAt     DateTime?
+  score         Decimal?      @db.Decimal(6, 2)
+  maxScore      Decimal?      @db.Decimal(6, 2)
+  percent       Decimal?      @db.Decimal(5, 2)
   /// Порядок вопросов и вариантов для данной попытки (сохраняется при обрыве связи)
   questionOrder Json?
-  ipAddress   String?
-  userAgent   String?
+  ipAddress     String?
+  userAgent     String?
 
   quiz    Quiz           @relation(fields: [quizId], references: [id], onDelete: Cascade)
   student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -915,23 +961,23 @@ model QuizAnswer {
 // ═══════════════════ Задания с загрузкой файлов (F-T-10, F-S-08) ═══════════
 
 model Assignment {
-  id            String   @id @default(cuid())
-  contentItemId String   @unique
-  instructions  String?  @db.Text
-  dueAt         DateTime?
+  id                String    @id @default(cuid())
+  contentItemId     String    @unique
+  instructions      String?   @db.Text
+  dueAt             DateTime?
   /// Приём работ после срока
-  allowLate     Boolean  @default(true)
+  allowLate         Boolean   @default(true)
   /// Снижение балла за каждый день просрочки, %
-  latePenaltyPerDay Decimal @default(10) @db.Decimal(5, 2)
+  latePenaltyPerDay Decimal   @default(10) @db.Decimal(5, 2)
   /// Максимальное снижение, %
-  latePenaltyMax    Decimal @default(50) @db.Decimal(5, 2)
-  maxScore      Decimal  @default(100) @db.Decimal(6, 2)
+  latePenaltyMax    Decimal   @default(50) @db.Decimal(5, 2)
+  maxScore          Decimal   @default(100) @db.Decimal(6, 2)
   /// Допустимые расширения файлов
   allowedExtensions String[]
-  maxFileSizeMb Int      @default(20)
-  maxFiles      Int      @default(3)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  maxFileSizeMb     Int       @default(20)
+  maxFiles          Int       @default(3)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   contentItem ContentItem  @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
   submissions Submission[]
@@ -975,11 +1021,11 @@ model Submission {
 
 /// Справочник шкалы оценивания — Приложение 1 к Типовым правилам. Не редактируется (раздел 2.3).
 model GradeScale {
-  id        String         @id @default(cuid())
-  code      String         @unique // STANDARD | LANGUAGE
-  name      String
-  isSystem  Boolean        @default(true)
-  items     GradeScaleItem[]
+  id       String           @id @default(cuid())
+  code     String           @unique // STANDARD | LANGUAGE
+  name     String
+  isSystem Boolean          @default(true)
+  items    GradeScaleItem[]
 
   @@map("grade_scales")
 }
@@ -1013,23 +1059,23 @@ model GradeScaleItem {
 
 /// Параметры расчёта итоговой оценки. Уровень вуза → дисциплины → курса (раздел 4.3).
 model GradeConfig {
-  id           String   @id @default(cuid())
+  id                 String   @id @default(cuid())
   /// null на обоих уровнях = настройка вуза по умолчанию
-  disciplineId String?  @unique
-  courseId     String?  @unique
+  disciplineId       String?  @unique
+  courseId           String?  @unique
   /// Число периодов рубежного контроля
-  midtermCount Int      @default(2)
+  midtermCount       Int      @default(2)
   /// Вес рейтинга допуска в итоговом балле
-  admissionWeight Decimal @default(0.60) @db.Decimal(4, 3)
+  admissionWeight    Decimal  @default(0.60) @db.Decimal(4, 3)
   /// Вес экзамена
-  examWeight      Decimal @default(0.40) @db.Decimal(4, 3)
+  examWeight         Decimal  @default(0.40) @db.Decimal(4, 3)
   /// Порог рейтинга допуска к экзамену
-  admissionThreshold Decimal @default(50) @db.Decimal(5, 2)
+  admissionThreshold Decimal  @default(50) @db.Decimal(5, 2)
   /// Минимальный итоговый балл для положительной оценки
-  passingScore       Decimal @default(50) @db.Decimal(5, 2)
+  passingScore       Decimal  @default(50) @db.Decimal(5, 2)
   /// Минимальный балл экзамена (0 = не проверяется)
-  examMinScore       Decimal @default(0) @db.Decimal(5, 2)
-  updatedAt    DateTime @updatedAt
+  examMinScore       Decimal  @default(0) @db.Decimal(5, 2)
+  updatedAt          DateTime @updatedAt
 
   discipline Discipline? @relation(fields: [disciplineId], references: [id], onDelete: Cascade)
   course     Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -1039,22 +1085,22 @@ model GradeConfig {
 
 /// Оценочное мероприятие
 model GradeItem {
-  id           String        @id @default(cuid())
-  courseId     String
-  quizId       String?       @unique
-  assignmentId String?       @unique
-  title        String
+  id            String        @id @default(cuid())
+  courseId      String
+  quizId        String?       @unique
+  assignmentId  String?       @unique
+  title         String
   controlPeriod ControlPeriod
   /// Максимальный балл мероприятия
-  maxScore     Decimal       @db.Decimal(6, 2)
+  maxScore      Decimal       @db.Decimal(6, 2)
   /// Вес внутри периода контроля, %
-  weight       Decimal       @db.Decimal(5, 2)
-  dueAt        DateTime?
+  weight        Decimal       @db.Decimal(5, 2)
+  dueAt         DateTime?
   /// Автоматически заполняется из теста / задания
-  isAutoGraded Boolean       @default(false)
-  orderIndex   Int           @default(0)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  isAutoGraded  Boolean       @default(false)
+  orderIndex    Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   course     Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
   quiz       Quiz?       @relation(fields: [quizId], references: [id], onDelete: SetNull)
@@ -1086,28 +1132,28 @@ model Grade {
 
 /// Итоги по курсу: РК1, РК2, допуск, экзамен, итоговый балл, буквенная оценка
 model PeriodGrade {
-  id            String   @id @default(cuid())
-  courseId      String
-  studentId     String
-  periodId      String
-  rk1           Decimal? @db.Decimal(5, 2)
-  rk2           Decimal? @db.Decimal(5, 2)
+  id             String     @id @default(cuid())
+  courseId       String
+  studentId      String
+  periodId       String
+  rk1            Decimal?   @db.Decimal(5, 2)
+  rk2            Decimal?   @db.Decimal(5, 2)
   /// Рейтинг допуска = (РК1 + РК2) / 2
-  admissionScore Decimal? @db.Decimal(5, 2)
-  isAdmitted    Boolean  @default(false)
-  examScore     Decimal? @db.Decimal(5, 2)
+  admissionScore Decimal?   @db.Decimal(5, 2)
+  isAdmitted     Boolean    @default(false)
+  examScore      Decimal?   @db.Decimal(5, 2)
   /// Итоговый балл = допуск × 0,6 + экзамен × 0,4
-  finalScore    Decimal? @db.Decimal(5, 2)
-  letter        String?
-  gpaPoints     Decimal? @db.Decimal(3, 2)
-  traditional   String?
-  ects          String?
-  cefr          CefrLevel?
+  finalScore     Decimal?   @db.Decimal(5, 2)
+  letter         String?
+  gpaPoints      Decimal?   @db.Decimal(3, 2)
+  traditional    String?
+  ects           String?
+  cefr           CefrLevel?
   /// Пересдача экзамена по FX
-  retakeCount   Int      @default(0)
-  isFinalized   Boolean  @default(false)
-  calculatedAt  DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  retakeCount    Int        @default(0)
+  isFinalized    Boolean    @default(false)
+  calculatedAt   DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -1142,17 +1188,17 @@ model GradeSheet {
 
 /// Рассчитанный GPA за период / год / накопительный (раздел 4.3)
 model GpaRecord {
-  id        String   @id @default(cuid())
-  studentId String
+  id           String   @id @default(cuid())
+  studentId    String
   /// PERIOD | YEAR | CUMULATIVE
-  scope     String
+  scope        String
   /// id периода или года; пустая строка для накопительного
   /// (не null — поле входит в составной уникальный индекс)
-  scopeId   String   @default("")
-  gpa       Decimal  @db.Decimal(4, 3)
-  credits   Int
+  scopeId      String   @default("")
+  gpa          Decimal  @db.Decimal(4, 3)
+  credits      Int
   /// Интегрированный социальный GPA (п. 40 Типовых правил), если методика утверждена
-  socialGpa Decimal? @db.Decimal(4, 3)
+  socialGpa    Decimal? @db.Decimal(4, 3)
   calculatedAt DateTime @default(now())
 
   student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -1186,17 +1232,17 @@ model ActivityLog {
 
 /// Сессия работы с элементом содержания (раздел 4.2)
 model TimeSession {
-  id            String   @id @default(cuid())
-  userId        String
-  contentItemId String
-  startedAt     DateTime @default(now())
-  lastHeartbeat DateTime @default(now())
-  endedAt       DateTime?
+  id                  String    @id @default(cuid())
+  userId              String
+  contentItemId       String
+  startedAt           DateTime  @default(now())
+  lastHeartbeat       DateTime  @default(now())
+  endedAt             DateTime?
   /// Засчитанные минуты (без неактивного времени, с ограничением 150 % плана)
-  countedMinutes Decimal @default(0) @db.Decimal(8, 2)
+  countedMinutes      Decimal   @default(0) @db.Decimal(8, 2)
   /// Просмотренная доля видео, % (YouTube IFrame Player API)
-  videoWatchedPercent Decimal? @db.Decimal(5, 2)
-  isClosed      Boolean  @default(false)
+  videoWatchedPercent Decimal?  @db.Decimal(5, 2)
+  isClosed            Boolean   @default(false)
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   contentItem ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
@@ -1226,20 +1272,20 @@ model ItemCompletion {
 
 /// Агрегированный прогресс по курсу
 model Progress {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   courseId       String
   studentId      String
-  completedItems Int      @default(0)
-  totalItems     Int      @default(0)
+  completedItems Int       @default(0)
+  totalItems     Int       @default(0)
   /// Освоено академических часов
-  earnedHours    Decimal  @default(0) @db.Decimal(8, 2)
+  earnedHours    Decimal   @default(0) @db.Decimal(8, 2)
   /// Всего плановых часов курса
-  totalHours     Decimal  @default(0) @db.Decimal(8, 2)
-  percent        Decimal  @default(0) @db.Decimal(5, 2)
+  totalHours     Decimal   @default(0) @db.Decimal(8, 2)
+  percent        Decimal   @default(0) @db.Decimal(5, 2)
   /// Фактически проведённое время, минут — для отчёта об участии
-  totalMinutes   Decimal  @default(0) @db.Decimal(10, 2)
+  totalMinutes   Decimal   @default(0) @db.Decimal(10, 2)
   lastActivityAt DateTime?
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime  @updatedAt
 
   course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -1252,22 +1298,22 @@ model Progress {
 // ════════════════════ Интеграция и служебные сущности ══════════════════════
 
 model IntegrationOutbox {
-  id             String          @id @default(cuid())
-  eventType      OutboxEventType
+  id               String          @id @default(cuid())
+  eventType        OutboxEventType
   /// Ключ идемпотентности — повторная отправка не создаёт дубликатов (раздел 9.1)
-  idempotencyKey String          @unique
-  payload        Json
-  status         OutboxStatus    @default(PENDING)
-  attempts       Int             @default(0)
-  maxAttempts    Int             @default(10)
-  nextAttemptAt  DateTime        @default(now())
-  lastError      String?         @db.Text
-  sentAt         DateTime?
+  idempotencyKey   String          @unique
+  payload          Json
+  status           OutboxStatus    @default(PENDING)
+  attempts         Int             @default(0)
+  maxAttempts      Int             @default(10)
+  nextAttemptAt    DateTime        @default(now())
+  lastError        String?         @db.Text
+  sentAt           DateTime?
   /// Требуется явное подтверждение офиса регистратора (раздел 9.1, п. 5)
-  requiresApproval Boolean       @default(false)
-  approvedById   String?
-  approvedAt     DateTime?
-  createdAt      DateTime        @default(now())
+  requiresApproval Boolean         @default(false)
+  approvedById     String?
+  approvedAt       DateTime?
+  createdAt        DateTime        @default(now())
 
   @@index([status, nextAttemptAt])
   @@index([eventType])
@@ -1311,11 +1357,11 @@ model AuditLog {
 
 /// Согласие на обработку персональных данных (F-S-02, раздел 6.4)
 model Consent {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  documentCode String   @default("PDP")
+  documentCode String    @default("PDP")
   version      String
-  acceptedAt   DateTime @default(now())
+  acceptedAt   DateTime  @default(now())
   ipAddress    String?
   revokedAt    DateTime?
 
@@ -1327,15 +1373,15 @@ model Consent {
 }
 
 model Notification {
-  id       String           @id @default(cuid())
-  userId   String
-  type     NotificationType
-  title    String
-  body     String?          @db.Text
-  link     String?
-  isRead   Boolean          @default(false)
-  readAt   DateTime?
-  createdAt DateTime        @default(now())
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?          @db.Text
+  link      String?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1413,4 +1459,233 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verification_tokens")
+}
+
+// ═══════════════════ Учебные планы — модуль CUR (раздел 4.2) ═══════════════
+//
+// Разделение ответственности, отличное от Discipline:
+//   Discipline      — справочник дисциплин университета (что вообще читается);
+//   CurriculumSlot  — позиция учебного плана (сколько кредитов, какой цикл,
+//                     в каком семестре, какая форма контроля);
+//   CurriculumSlotOption — какая дисциплина закрывает позицию. Для ОК и ВК
+//                     вариант один, для КВ их 2–3, и студент выбирает
+//                     ровно chooseN (R-13).
+// Кредиты и цикл дисциплины хранятся и в справочнике (значения по умолчанию,
+// на них опирается уже работающий код курсов и оценок), и в позиции плана
+// (нормативные, по ним считает валидатор). Источник истины для ГОСО —
+// позиция плана.
+
+/// Профиль ГОСО: нормативные объёмы, от которых работает валидатор (R-01…R-08).
+/// Значения редактируются в интерфейсе, а не в коде (F-ADM-14).
+model GosoProfile {
+  id                  String     @id @default(cuid())
+  /// BACHELOR_240 | BACHELOR_300 | VSUZ_240 | SPECIALIST_300
+  code                String     @unique
+  nameKk              String
+  nameRu              String
+  nameEn              String?
+  level               StudyLevel @default(BACHELOR)
+  /// R-02: нормативный объём программы
+  totalCredits        Int
+  /// R-08: минимальная сумма часов
+  totalHoursMin       Int
+  /// R-01: 1 кредит = 30 академических часов
+  hoursPerCredit      Int        @default(30)
+  /// R-03: цикл ООД
+  oodCredits          Int        @default(56)
+  /// R-04: обязательный компонент ООД
+  oodOkCredits        Int        @default(51)
+  /// R-05: ВК и (или) КВ цикла ООД
+  oodVkKvCredits      Int        @default(5)
+  /// R-06: минимум по циклам БД + ПД, включая профессиональную практику
+  bdPdCreditsMin      Int
+  /// R-07: минимум по итоговой аттестации
+  finalCertCreditsMin Int        @default(8)
+  /// R-09: ориентир годовой нагрузки
+  yearCreditsNorm     Int        @default(60)
+  /// Ссылка на приказ и приложение
+  legalBasis          String?
+  validFrom           DateTime   @db.Date
+  validTo             DateTime?  @db.Date
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  mandatory GosoMandatoryDiscipline[]
+  programs  EducationProgram[]
+  curricula Curriculum[]
+
+  @@map("goso_profiles")
+}
+
+/// Обязательные дисциплины цикла ООД с фиксированными объёмами (ГОСО, п. 6).
+/// Основание для R-04: валидатор проверяет наличие каждой позиции и её объём.
+model GosoMandatoryDiscipline {
+  id              String             @id @default(cuid())
+  profileId       String
+  /// history_kz | philosophy | foreign_lang | state_lang | ict | sociopolit | phys_culture
+  slug            String
+  nameKk          String
+  nameRu          String
+  nameEn          String?
+  credits         Int
+  hours           Int
+  controlForm     ControlForm        @default(EXAM)
+  contentEditable ContentEditability @default(NONE)
+  /// Модуль социально-политических знаний дробится вузом на дисциплины
+  /// при неизменной сумме кредитов (раздел 2.3)
+  isModule        Boolean            @default(false)
+  sortOrder       Int                @default(0)
+
+  profile     GosoProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  disciplines Discipline[]
+
+  @@unique([profileId, slug])
+  @@map("goso_mandatory_disciplines")
+}
+
+/// Учебный план: программа + год набора + версия (F-CUR-01)
+model Curriculum {
+  id                String           @id @default(cuid())
+  programId         String
+  /// Год набора, напр. 2026
+  admissionYear     Int
+  version           Int              @default(1)
+  studyForm         StudyForm        @default(FULL_TIME)
+  /// Язык отделения, если план языкозависим
+  language          LanguageCode?
+  gosoProfileId     String
+  /// Рассчитываются из позиций при каждом сохранении
+  totalCredits      Decimal?         @db.Decimal(7, 2)
+  totalHours        Int?
+  termsCount        Int              @default(8)
+  status            CurriculumStatus @default(DRAFT)
+  /// Реквизиты протокола Учёного совета (F-CUR-09)
+  councilProtocolNo String?
+  councilDate       DateTime?        @db.Date
+  approvedById      String?
+  approvedAt        DateTime?
+  rejectionReason   String?          @db.Text
+  createdById       String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  program     EducationProgram       @relation(fields: [programId], references: [id], onDelete: Restrict)
+  gosoProfile GosoProfile            @relation(fields: [gosoProfileId], references: [id], onDelete: Restrict)
+  createdBy   User?                  @relation("CurriculumAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy  User?                  @relation("CurriculumApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  modules     CurriculumModule[]
+  slots       CurriculumSlot[]
+  validations CurriculumValidation[]
+
+  @@unique([programId, admissionYear, version, studyForm])
+  @@index([programId, status])
+  @@map("curricula")
+}
+
+/// Модуль учебного плана («Модуль общественных наук», «Модули специальности»)
+model CurriculumModule {
+  id           String  @id @default(cuid())
+  curriculumId String
+  parentId     String?
+  /// Шифр модуля из печатной формы, напр. «MON»
+  code         String?
+  nameKk       String
+  nameRu       String
+  nameEn       String?
+  sortOrder    Int     @default(0)
+
+  curriculum Curriculum         @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  parent     CurriculumModule?  @relation("ModuleTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children   CurriculumModule[] @relation("ModuleTree")
+  slots      CurriculumSlot[]
+
+  @@index([curriculumId])
+  @@map("curriculum_modules")
+}
+
+/// Позиция учебного плана. Для компонента по выбору содержит несколько
+/// дисциплин-альтернатив (F-CUR-03).
+model CurriculumSlot {
+  id                 String              @id @default(cuid())
+  curriculumId       String
+  moduleId           String?
+  /// Шифр позиции из печатной формы, напр. «1217»
+  slotCode           String?
+  cycle              DisciplineCycle
+  component          DisciplineComponent
+  credits            Decimal             @db.Decimal(5, 2)
+  totalHours         Int
+  /// Часы по видам работы (F-CUR-02)
+  hoursLecture       Int                 @default(0)
+  hoursLab           Int                 @default(0)
+  hoursPractice      Int                 @default(0)
+  hoursIndividual    Int                 @default(0)
+  /// СРС / БАӨЖ
+  hoursSrs           Int                 @default(0)
+  /// СРСП / БАОӨЖ
+  hoursSrsp          Int                 @default(0)
+  /// Профессиональная практика
+  hoursPracticeField Int                 @default(0)
+  /// Дипломная работа (проект)
+  hoursThesis        Int                 @default(0)
+  controlForm        ControlForm
+  hasCourseWork      Boolean             @default(false)
+  /// В каких семестрах читается: [1,2] для языков, [1,2,3,4] для физкультуры
+  terms              Int[]
+  /// Разбивка кредитов по семестрам: {"1": 5, "2": 5}
+  creditsByTerm      Json                @default("{}")
+  /// Семестр итогового контроля
+  controlTerm        Int?
+  teachingLang       String?
+  /// Сколько дисциплин из набора вариантов выбирает студент (R-13)
+  chooseN            Int                 @default(1)
+  /// Слот минор-программы (F-CUR-04)
+  isMinorSlot        Boolean             @default(false)
+  sortOrder          Int                 @default(0)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  curriculum Curriculum             @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  module     CurriculumModule?      @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  options    CurriculumSlotOption[]
+
+  @@index([curriculumId, cycle, component])
+  @@map("curriculum_slots")
+}
+
+/// Вариант дисциплины внутри позиции плана.
+/// Для ОК и ВК запись одна; для КВ их 2–3 («Археология» / «Археология Казахстана»).
+model CurriculumSlotOption {
+  id                 String  @id @default(cuid())
+  slotId             String
+  disciplineId       String
+  isDefault          Boolean @default(false)
+  /// Слот минора: дисциплина подставляется из другой программы
+  isMinorPlaceholder Boolean @default(false)
+  sortOrder          Int     @default(0)
+
+  slot       CurriculumSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  discipline Discipline     @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+
+  @@unique([slotId, disciplineId])
+  @@index([disciplineId])
+  @@map("curriculum_slot_options")
+}
+
+/// Результат прогона валидатора ГОСО по плану (F-CUR-06).
+/// Хранится историей: видно, что именно исправляли перед утверждением.
+model CurriculumValidation {
+  id           String   @id @default(cuid())
+  curriculumId String
+  runAt        DateTime @default(now())
+  runById      String?
+  isValid      Boolean
+  /// [{ "rule": "R-03", "level": "ERROR", "expected": 56, "actual": 54, "message": "…" }]
+  findings     Json     @default("[]")
+
+  curriculum Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  runBy      User?      @relation("ValidationRunner", fields: [runById], references: [id], onDelete: SetNull)
+
+  @@index([curriculumId, runAt])
+  @@map("curriculum_validations")
 }
