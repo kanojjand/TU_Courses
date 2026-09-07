@@ -292,6 +292,8 @@ export async function offeringsForDiscipline(disciplineId: string, academicYearI
       streamName: true,
       maxEnrollment: true,
       period: { select: { id: true, name: true, ordinal: true, status: true } },
+      language: true,
+      groups: { select: { groupId: true } },
       discipline: { select: { code: true, nameRu: true, credits: true, language: true } },
       teachers: {
         where: { isLead: true },

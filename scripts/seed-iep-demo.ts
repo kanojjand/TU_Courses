@@ -320,6 +320,70 @@ async function main() {
   }
   console.log(`  ✓ реализаций ${offerings}, у первой квота 2 места`);
 
+  // ── Журнал посещаемости (F-LRN-06) ──────────────────────────────────────
+  // Без отметок нечего показывать студенту и нечего передавать в ИС
+  // уполномоченного органа (п. 40 Типовых правил).
+  console.log('→ Журнал посещаемости…');
+  // Журнал заводится по курсу, на который кто-то зарегистрирован: пустой
+  // журнал ничего не показывает ни студенту, ни в сводке группы
+  const journalCourse = await prisma.course.findFirst({
+    where: {
+      slug: { startsWith: 'tar-' },
+      status: 'PUBLISHED',
+      enrollments: { some: { cancelledAt: null } },
+    },
+    select: { id: true, discipline: { select: { nameRu: true } } },
+    orderBy: { slug: 'asc' },
+  });
+  const enrolled = journalCourse
+    ? await prisma.enrollment.findMany({
+        where: { courseId: journalCourse.id, cancelledAt: null },
+        select: { studentId: true },
+      })
+    : [];
+
+  if (journalCourse && enrolled.length > 0) {
+    await prisma.attendanceSession.deleteMany({ where: { courseId: journalCourse.id } });
+
+    // Три занятия подряд, начиная с прошлой недели: журнал должен выглядеть
+    // как уже ведущийся, а не как заведённый сегодня
+    const base = new Date();
+    base.setDate(base.getDate() - 10);
+    const kinds = ['LECTURE', 'PRACTICE', 'LECTURE'] as const;
+
+    for (const [i, kind] of kinds.entries()) {
+      const heldOn = new Date(base);
+      heldOn.setDate(base.getDate() + i * 3);
+
+      const session = await prisma.attendanceSession.create({
+        data: {
+          courseId: journalCourse.id,
+          heldOn,
+          startsAt: '09:00',
+          lessonKind: kind,
+          topic: `Занятие ${i + 1}`,
+        },
+        select: { id: true },
+      });
+
+      await prisma.attendanceMark.createMany({
+        data: enrolled.map((e, j) => ({
+          sessionId: session.id,
+          studentId: e.studentId,
+          // Один пропуск и одна уважительная причина на курс: сводка
+          // и группа риска должны быть не пустыми
+          state: j === 0 && i === 1 ? 'ABSENT' : j === 1 && i === 2 ? 'EXCUSED' : 'PRESENT',
+        })),
+      });
+    }
+    console.log(
+      `  ✓ «${journalCourse.discipline.nameRu}»: 3 занятия, ` +
+        `${enrolled.length * 3} отметок`
+    );
+  } else {
+    console.log('  · пропущено: нет курса с зарегистрированными обучающимися');
+  }
+
   console.log('\n✓ Данные этапа 3 загружены.');
   console.log('  Сценарий: студент → /my/iep → отправить эдвайзеру →');
   console.log('  g.tulegenova@demo.example.kz → /advisor → согласовать →');

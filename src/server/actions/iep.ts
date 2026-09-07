@@ -413,9 +413,23 @@ export async function registerForCourse(
       status: true,
       periodId: true,
       period: { select: { type: true } },
+      groups: { select: { groupId: true } },
     },
   });
   if (!course) return fail('Реализация дисциплины не найдена.');
+
+  // F-LRN-01: реализация может быть открыта только части групп.
+  // Пустой список групп означает «для всех» — так заведено большинство курсов.
+  if (course.groups.length > 0) {
+    const student = await prisma.studentProfile.findUnique({
+      where: { id: item.iep.studentId },
+      select: { groupId: true },
+    });
+    const allowed = course.groups.some((g) => g.groupId === student?.groupId);
+    if (!allowed) {
+      return fail('Эта реализация дисциплины открыта только для других академических групп.');
+    }
+  }
   if (course.disciplineId !== item.disciplineId) {
     return fail('Курс относится к другой дисциплине, чем строка ИУП.');
   }

@@ -40,6 +40,8 @@ export default async function IepPage({ params }: { params: Promise<{ locale: st
         id: true,
         studyYear: true,
         admissionYear: true,
+        language: true,
+        groupId: true,
         program: { select: { code: true, nameKk: true, nameRu: true, nameEn: true } },
         group: { select: { name: true } },
         advisor: {
@@ -98,7 +100,10 @@ export default async function IepPage({ params }: { params: Promise<{ locale: st
       disciplineId: true,
       streamName: true,
       maxEnrollment: true,
+      language: true,
+      groups: { select: { groupId: true } },
       period: { select: { id: true, name: true, ordinal: true } },
+      discipline: { select: { language: true } },
       teachers: {
         where: { isLead: true },
         select: { teacher: { select: { user: { select: { lastNameRu: true, firstNameRu: true } } } } },
@@ -167,17 +172,34 @@ export default async function IepPage({ params }: { params: Promise<{ locale: st
           periodName: r.course.period.name,
         })),
       }))}
-      offerings={offerings.map((c) => ({
-        id: c.id,
-        disciplineId: c.disciplineId,
-        streamName: c.streamName,
-        periodName: c.period.name,
-        capacity: c.maxEnrollment,
-        registered: c._count.enrollments,
-        teacher: c.teachers[0]
-          ? `${c.teachers[0].teacher.user.lastNameRu} ${c.teachers[0].teacher.user.firstNameRu}`
-          : null,
-      }))}
+      offerings={offerings
+        // F-LRN-01: реализация может быть открыта только части групп.
+        // Чужие потоки студенту не показываем — регистрация на них
+        // всё равно будет отклонена сервером
+        .filter(
+          (c) => c.groups.length === 0 || c.groups.some((g) => g.groupId === student.groupId)
+        )
+        .map((c) => {
+          // Язык реализации: собственный, иначе язык дисциплины из справочника
+          const language = c.language ?? c.discipline.language;
+          return {
+            id: c.id,
+            disciplineId: c.disciplineId,
+            streamName: c.streamName,
+            periodName: c.period.name,
+            capacity: c.maxEnrollment,
+            registered: c._count.enrollments,
+            language,
+            /** Совпадает ли язык потока с языком обучения студента (F-IEP-05) */
+            matchesLanguage: language === student.language,
+            teacher: c.teachers[0]
+              ? `${c.teachers[0].teacher.user.lastNameRu} ${c.teachers[0].teacher.user.firstNameRu}`
+              : null,
+          };
+        })
+        // Потоки на языке студента идут первыми: выбор чужого языка —
+        // осознанное решение, а не то, во что упираешься случайно
+        .sort((a, b) => Number(b.matchesLanguage) - Number(a.matchesLanguage))}
       windows={windows.map((w) => ({
         kind: w.kind,
         opensAt: w.opensAt.toISOString(),

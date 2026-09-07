@@ -15,6 +15,7 @@ export function CourseTabs({ courseId }: { courseId: string }) {
     { href: `${base}/syllabus`, label: t('syllabus') },
     { href: `${base}/questions`, label: t('questionBank') },
     { href: `${base}/gradebook`, label: t('gradebook') },
+    { href: `${base}/attendance`, label: 'Посещаемость' },
     { href: `${base}/submissions`, label: t('submissions') },
     { href: `${base}/analytics`, label: t('analytics') },
   ];

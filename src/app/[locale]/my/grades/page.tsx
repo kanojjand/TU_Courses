@@ -8,6 +8,8 @@ import { Badge, gradeTone } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/alert';
 import { Link } from '@/i18n/routing';
 import { fmtGpa, fmtScore } from '@/lib/utils';
+import { studentAttendance, attendanceThreshold } from '@/server/attendance';
+import { AttendanceSummary } from '@/components/student/attendance-summary';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +53,13 @@ export default async function MyGradesPage({ params }: { params: Promise<{ local
     prisma.gpaRecord.findMany({ where: { studentId } }),
   ]);
 
+  // F-LRN-06: посещаемость показывается рядом с оценками — студент смотрит
+  // на успеваемость целиком, а не отдельными разделами
+  const [attendance, threshold] = await Promise.all([
+    studentAttendance(studentId),
+    attendanceThreshold(),
+  ]);
+
   const cumulative = gpaRecords.find((r) => r.scope === 'CUMULATIVE');
 
   return (
@@ -76,6 +85,32 @@ export default async function MyGradesPage({ params }: { params: Promise<{ local
           </div>
         </CardBody>
       </Card>
+
+      <div className="mt-5">
+        <AttendanceSummary
+          threshold={threshold}
+          rows={attendance.map((a) => ({
+            courseId: a.course.id,
+            disciplineCode: a.course.discipline.code,
+            disciplineName: pickLocalized(a.course.discipline, 'name', locale),
+            periodName: a.course.period.name,
+            total: a.summary.total,
+            unmarked: a.summary.unmarked,
+            present: a.summary.present,
+            absent: a.summary.absent,
+            late: a.summary.late,
+            excused: a.summary.excused,
+            online: a.summary.online,
+            percent: a.summary.percent,
+            // Последние шесть занятий: за какое именно занятие стоит пропуск
+            recent: a.sessions.slice(-6).map((s) => ({
+              heldOn: s.heldOn.toISOString().slice(0, 10),
+              state: s.marks[0]?.state ?? null,
+              reason: s.marks[0]?.reason ?? null,
+            })),
+          }))}
+        />
+      </div>
 
       {enrollments.length === 0 ? (
         <EmptyState title={tc('empty')} />

@@ -416,6 +416,8 @@ model User {
   staffAssignments    StaffAssignment[]      @relation("StaffAssignee")
   assignmentsMade     StaffAssignment[]      @relation("StaffAssignmentAuthor")
   statusChangesMade   StudentStatusHistory[] @relation("StatusHistoryAuthor")
+  attendanceCreated   AttendanceSession[]    @relation("AttendanceAuthor")
+  attendanceMarked    AttendanceMark[]       @relation("AttendanceMarker")
   iepsAdvised         Iep[]                  @relation("IepAdvisor")
   iepsApproved        Iep[]                  @relation("IepApprover")
   iepsConfirmed       Iep[]                  @relation("IepConfirmer")
@@ -483,6 +485,7 @@ model StudentProfile {
   group            StudyGroup?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
   advisor          TeacherProfile?        @relation("AdvisorStudents", fields: [advisorId], references: [id], onDelete: SetNull)
   ieps             Iep[]
+  attendanceMarks  AttendanceMark[]
   memberships      GroupMembership[]
   statusHistory    StudentStatusHistory[]
   staffAssignments StaffAssignment[]
@@ -543,6 +546,7 @@ model StudyGroup {
   students    StudentProfile[]
   memberships GroupMembership[]
   assignments StaffAssignment[]
+  courses     CourseGroup[]
 
   @@unique([programId, name])
   @@index([programId])
@@ -632,33 +636,36 @@ model WorkTypeNorm {
 
 /// Экземпляр дисциплины в конкретном академическом периоде — наполняется содержимым
 model Course {
-  id              String       @id @default(cuid())
+  id              String        @id @default(cuid())
   disciplineId    String
   periodId        String
   /// Учебный поток (для нескольких потоков одной дисциплины в одном периоде)
   streamName      String?
-  slug            String       @unique
-  status          CourseStatus @default(DRAFT)
+  /// Язык реализации. null — язык дисциплины из справочника: у большинства
+  /// курсов он совпадает, а расхождение бывает только у языковых отделений
+  language        LanguageCode?
+  slug            String        @unique
+  status          CourseStatus  @default(DRAFT)
   /// Публикация в публичный каталог (F-P-04); по умолчанию скрыт
-  isPublic        Boolean      @default(false)
+  isPublic        Boolean       @default(false)
   /// Краткая аннотация для публичной карточки
-  summaryKk       String?      @db.Text
-  summaryRu       String?      @db.Text
-  summaryEn       String?      @db.Text
+  summaryKk       String?       @db.Text
+  summaryRu       String?       @db.Text
+  summaryEn       String?       @db.Text
   coverKey        String?
   /// Запрет скачивания материалов на устройство (вопрос 14.2.10)
-  preventDownload Boolean      @default(true)
+  preventDownload Boolean       @default(true)
   maxEnrollment   Int?
   submittedAt     DateTime?
   reviewedAt      DateTime?
   reviewedById    String?
-  reviewComment   String?      @db.Text
+  reviewComment   String?       @db.Text
   publishedAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  discipline    Discipline      @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
-  period        AcademicPeriod  @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  discipline    Discipline          @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  period        AcademicPeriod      @relation(fields: [periodId], references: [id], onDelete: Restrict)
   teachers      CourseTeacher[]
   syllabus      Syllabus?
   modules       Module[]
@@ -671,6 +678,8 @@ model Course {
   announcements Announcement[]
   gradeConfig   GradeConfig?
   periodGrades  PeriodGrade[]
+  groups        CourseGroup[]
+  attendance    AttendanceSession[]
 
   @@unique([disciplineId, periodId, streamName])
   @@index([periodId])
@@ -750,21 +759,23 @@ model Enrollment {
 // ═══════════════════════════ Содержание курса ══════════════════════════════
 
 model Module {
-  id            String    @id @default(cuid())
+  id            String              @id @default(cuid())
   courseId      String
+  /// Занятия посещаемости, привязанные к теме
+  attendance    AttendanceSession[]
   titleKk       String?
   titleRu       String?
   titleEn       String?
   /// Заголовок на языке обучения дисциплины (F-L-04)
   title         String
-  description   String?   @db.Text
+  description   String?             @db.Text
   orderIndex    Int
   /// Номер учебной недели, если модуль соответствует неделе
   weekNumber    Int?
-  isPublished   Boolean   @default(true)
+  isPublished   Boolean             @default(true)
   availableFrom DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   course Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
   items  ContentItem[]
@@ -1980,4 +1991,91 @@ model IepItem {
   @@unique([iepId, slotId, disciplineId])
   @@index([iepId, termNo])
   @@map("iep_items")
+}
+
+// ═══════════ Посещаемость и реализация дисциплины — этап 4 (раздел 4.6) ════
+//
+// Посещаемость — не «ещё один журнал»: пункт 40 Типовых правил обязывает вуз
+// передавать сведения о посещаемости в информационную систему уполномоченного
+// органа наравне с текущим контролем и аттестацией. До этого модуля в очередь
+// уходило участие, вычисленное по активности в системе (weeklyParticipation);
+// теперь источником служат отметки преподавателя по занятиям, а активность
+// остаётся дополнительным показателем.
+
+/// Вид занятия (F-LRN-06)
+enum LessonKind {
+  LECTURE // лекция
+  PRACTICE // практическое, семинарское занятие
+  LAB // лабораторное занятие
+  SRSP // самостоятельная работа под руководством преподавателя
+  CONSULT // консультация
+  EXAM // экзамен, зачёт
+}
+
+/// Отметка посещаемости
+enum AttendanceState {
+  PRESENT // присутствовал
+  ABSENT // отсутствовал без уважительной причины
+  LATE // опоздал
+  EXCUSED // отсутствовал по уважительной причине
+  ONLINE // участвовал дистанционно
+}
+
+/// Занятие, по которому ведётся отметка посещаемости (F-LRN-06)
+model AttendanceSession {
+  id          String     @id @default(cuid())
+  courseId    String
+  heldOn      DateTime   @db.Date
+  /// Время начала; вместе с датой и видом различает занятия одного дня
+  startsAt    String?
+  lessonKind  LessonKind @default(LECTURE)
+  /// Тема занятия — элемент содержания курса, если занятие с ним связано
+  moduleId    String?
+  topic       String?
+  createdById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module    Module?          @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  createdBy User?            @relation("AttendanceAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  marks     AttendanceMark[]
+
+  @@unique([courseId, heldOn, startsAt, lessonKind])
+  @@index([courseId, heldOn])
+  @@map("attendance_sessions")
+}
+
+/// Отметка по конкретному обучающемуся на конкретном занятии
+model AttendanceMark {
+  id         String          @id @default(cuid())
+  sessionId  String
+  studentId  String
+  state      AttendanceState @default(PRESENT)
+  /// Причина отсутствия — заполняется для EXCUSED и ABSENT
+  reason     String?
+  markedById String?
+  markedAt   DateTime        @default(now())
+
+  session  AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student  StudentProfile    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  markedBy User?             @relation("AttendanceMarker", fields: [markedById], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+  @@map("attendance_marks")
+}
+
+/// Академические группы, для которых открыта реализация дисциплины (F-LRN-01).
+/// Пустой список означает, что курс доступен всем группам программы.
+model CourseGroup {
+  courseId String
+  groupId  String
+
+  course Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  group  StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, groupId])
+  @@index([groupId])
+  @@map("course_groups")
 }

@@ -41,6 +41,10 @@ export const SETTINGS = {
   SOCIAL_GPA_ENABLED: 'social_gpa_enabled',
   MAX_UPLOAD_MB: 'max_upload_mb',
   RETENTION_YEARS_EXPELLED: 'retention_years_expelled',
+  // F-LRN-06: порог посещаемости для попадания в группу риска.
+  // ГОСО и Типовые правила фиксированного значения не задают — решение
+  // о недопуске принимает вуз, поэтому это настройка, а не константа.
+  ATTENDANCE_THRESHOLD: 'attendance_threshold_percent',
 } as const;
 
 /** Значения настроек по умолчанию (раздел 4.3 — типовая практика вузов РК) */
@@ -63,6 +67,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   [SETTINGS.SOCIAL_GPA_ENABLED]: 'false',
   [SETTINGS.MAX_UPLOAD_MB]: '100',
   [SETTINGS.RETENTION_YEARS_EXPELLED]: '5',
+  [SETTINGS.ATTENDANCE_THRESHOLD]: '50',
 };
 
 /** Максимальный размер загружаемого файла (раздел 6.1) */

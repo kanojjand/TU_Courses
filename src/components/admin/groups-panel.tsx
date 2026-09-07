@@ -21,6 +21,9 @@ export interface GroupStudentView {
   advisorId: string | null;
   advisorName: string | null;
   iepStatus: string | null;
+  /** Посещаемость по всем курсам, % (F-GRP-03); null — отметок ещё нет */
+  attendancePercent: number | null;
+  attendanceMarked: boolean;
 }
 
 export interface GroupView {
@@ -37,6 +40,8 @@ export interface GroupView {
   curriculumLabel: string | null;
   curatorId: string | null;
   curatorName: string | null;
+  /** Средняя посещаемость по группе, % */
+  attendancePercent: number;
   students: GroupStudentView[];
 }
 
@@ -83,11 +88,14 @@ export function GroupsPanel({
   programs,
   curricula,
   teachers,
+  threshold,
 }: {
   groups: GroupView[];
   programs: { id: string; code: string; name: string }[];
   curricula: { id: string; programId: string; label: string }[];
   teachers: { id: string; name: string; department: string }[];
+  /** Порог посещаемости для подсветки (настройка вуза) */
+  threshold: number;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -261,6 +269,11 @@ export function GroupsPanel({
                   <Badge>{g.programCode}</Badge>
                   <Badge>{g.studyYear} курс</Badge>
                   <Badge>{g.students.length} чел.</Badge>
+                  {g.attendancePercent > 0 && (
+                    <Badge tone={g.attendancePercent < threshold ? 'danger' : 'success'}>
+                      посещаемость {g.attendancePercent} %
+                    </Badge>
+                  )}
                   {g.curriculumLabel && <Badge tone="brand">план: {g.curriculumLabel}</Badge>}
                 </CardTitle>
                 <p className="mt-0.5 text-xs text-fg-muted">
@@ -307,6 +320,7 @@ export function GroupsPanel({
                           <th>Эдвайзер</th>
                           <th className="text-right">Кредитов</th>
                           <th className="text-right">GPA</th>
+                          <th className="text-right">Посещ.</th>
                           <th>ИУП</th>
                           <th />
                         </tr>
@@ -342,6 +356,17 @@ export function GroupsPanel({
                             <td className="text-right tabular-nums">{s.creditsEarned}</td>
                             <td className="text-right tabular-nums">
                               {s.gpa == null ? '—' : s.gpa.toFixed(2)}
+                            </td>
+                            <td className="text-right tabular-nums">
+                              {!s.attendanceMarked || s.attendancePercent == null ? (
+                                <span className="text-fg-muted">—</span>
+                              ) : (
+                                <span
+                                  className={s.attendancePercent < threshold ? 'text-danger' : ''}
+                                >
+                                  {s.attendancePercent} %
+                                </span>
+                              )}
                             </td>
                             <td>
                               {s.iepStatus ? (

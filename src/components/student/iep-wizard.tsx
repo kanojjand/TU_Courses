@@ -63,8 +63,17 @@ export interface OfferingView {
   periodName: string;
   capacity: number | null;
   registered: number;
+  language: string;
+  /** Совпадает ли язык потока с языком обучения студента (F-IEP-05) */
+  matchesLanguage: boolean;
   teacher: string | null;
 }
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  KK: 'қазақша',
+  RU: 'на русском',
+  EN: 'in English',
+};
 
 const STATUS_VIEW: Record<string, { label: string; tone: 'neutral' | 'brand' | 'success' | 'warning' }> = {
   DRAFT: { label: 'черновик', tone: 'neutral' },
@@ -387,6 +396,11 @@ export function IepWizard({
                                 {c.periodName}
                                 {c.streamName && ` · ${c.streamName}`}
                                 {c.teacher && ` · ${c.teacher}`}
+                                {!c.matchesLanguage && (
+                                  <span className="text-warning">
+                                    · {LANGUAGE_LABELS[c.language] ?? c.language}
+                                  </span>
+                                )}
                                 {c.capacity != null && (
                                   <span className={full ? 'text-warning' : 'text-fg-muted'}>
                                     {c.registered}/{c.capacity}

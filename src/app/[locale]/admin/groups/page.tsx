@@ -4,6 +4,7 @@ import { prisma, dec } from '@/lib/prisma';
 import { requirePageAccess } from '@/server/guards';
 import { pickLocalized } from '@/i18n/request';
 import { GroupsPanel } from '@/components/admin/groups-panel';
+import { groupAttendance, attendanceThreshold } from '@/server/attendance';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,16 @@ export default async function GroupsPage({ params }: { params: Promise<{ locale:
     }),
   ]);
 
+  // F-GRP-03: посещаемость в сводке группы. Считается по группам, а не
+  // одним запросом на всех: у каждой группы свой набор курсов, и общий
+  // знаменатель дал бы заниженный процент
+  const attendance = new Map(
+    await Promise.all(
+      groups.map(async (g) => [g.id, await groupAttendance(g.id)] as const)
+    )
+  );
+  const threshold = await attendanceThreshold();
+
   return (
     <>
       <h1 className="mb-1 text-2xl font-bold">{t('groups')}</h1>
@@ -73,6 +84,7 @@ export default async function GroupsPage({ params }: { params: Promise<{ locale:
       </p>
 
       <GroupsPanel
+        threshold={threshold}
         groups={groups.map((g) => ({
           id: g.id,
           name: g.name,
@@ -91,6 +103,7 @@ export default async function GroupsPage({ params }: { params: Promise<{ locale:
           curatorName: g.curator
             ? `${g.curator.user.lastNameRu} ${g.curator.user.firstNameRu}`
             : null,
+          attendancePercent: attendance.get(g.id)?.averagePercent ?? 0,
           students: g.students.map((s) => ({
             id: s.id,
             name: `${s.user.lastNameRu} ${s.user.firstNameRu}${
@@ -105,6 +118,10 @@ export default async function GroupsPage({ params }: { params: Promise<{ locale:
               ? `${s.advisor.user.lastNameRu} ${s.advisor.user.firstNameRu}`
               : null,
             iepStatus: s.ieps[0]?.status ?? null,
+            attendancePercent:
+              attendance.get(g.id)?.rows.find((r) => r.studentId === s.id)?.percent ?? null,
+            attendanceMarked:
+              (attendance.get(g.id)?.rows.find((r) => r.studentId === s.id)?.total ?? 0) > 0,
           })),
         }))}
         programs={programs.map((p) => ({
