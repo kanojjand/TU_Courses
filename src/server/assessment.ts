@@ -94,17 +94,25 @@ export async function honoursReport(studentId: string, locale = 'ru') {
         orderBy: { computedAt: 'desc' },
         select: { gpaCumulative: true },
       });
-  // Итоговая аттестация как дисциплина цикла ИА: отдельный модуль ИА —
-  // этап 7, до него оценка ИА берётся из ведомости соответствующей позиции
-  const attestation = await prisma.periodGrade.findFirst({
-    where: {
-      studentId,
-      isFinalized: true,
-      course: { discipline: { iepItems: { some: { slot: { cycle: 'IA' } } } } },
-    },
+  // Оценка итоговой аттестации берётся из протокола защиты (модуль FIN),
+  // а при его отсутствии — из ведомости позиции цикла ИА: планы, заведённые
+  // импортом до появления модуля, держат её именно там
+  const protocol = await prisma.finalAttestation.findUnique({
+    where: { studentId },
     select: { letter: true },
-    orderBy: { calculatedAt: 'desc' },
   });
+  const attestation =
+    protocol?.letter != null
+      ? protocol
+      : await prisma.periodGrade.findFirst({
+          where: {
+            studentId,
+            isFinalized: true,
+            course: { discipline: { iepItems: { some: { slot: { cycle: 'IA' } } } } },
+          },
+          select: { letter: true },
+          orderBy: { calculatedAt: 'desc' },
+        });
 
   const pick = (d: { nameKk: string; nameRu: string; nameEn: string }) =>
     locale === 'kk' ? d.nameKk : locale === 'en' ? d.nameEn : d.nameRu;

@@ -66,6 +66,7 @@ export async function setPeriodDuration(
 
 /** Отчёт R-10 по всем периодам учебного года — для панели администратора */
 export async function checkCalendarDurations(academicYearId: string) {
+  await requirePermission('period:manage');
   const periods = await prisma.academicPeriod.findMany({
     where: { academicYearId },
     select: {

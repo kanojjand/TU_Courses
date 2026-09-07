@@ -7,7 +7,7 @@ import { questionDifficultyStats } from '@/domain/quiz';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { ScoreChart } from '@/components/teacher/score-chart';
+import { ScoreChartLazy } from '@/components/teacher/score-chart-lazy';
 import { fmtMinutes } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -67,7 +67,7 @@ export default async function AnalyticsPage({
             {stats.scoreDistribution.every((b) => b.count === 0) ? (
               <EmptyState title="Данных о результатах тестов пока нет" />
             ) : (
-              <ScoreChart data={stats.scoreDistribution} />
+              <ScoreChartLazy data={stats.scoreDistribution} />
             )}
           </CardBody>
         </Card>

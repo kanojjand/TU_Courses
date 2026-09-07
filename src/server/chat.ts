@@ -54,21 +54,43 @@ export async function listConversations(userId: string) {
     orderBy: { conversation: { lastMessageAt: 'desc' } },
   });
 
-  const rows = await Promise.all(
-    memberships.map(async (m) => ({
-      membership: m,
-      unread: await prisma.message.count({
-        where: {
-          conversationId: m.conversationId,
-          deletedAt: null,
-          authorId: { not: userId },
-          createdAt: m.lastReadAt ? { gt: m.lastReadAt } : undefined,
-        },
-      }),
-    }))
-  );
+  const unread = await unreadByConversation(userId, memberships);
 
-  return rows;
+  return memberships.map((m) => ({
+    membership: m,
+    unread: unread.get(m.conversationId) ?? 0,
+  }));
+}
+
+/**
+ * Непрочитанные по всем разговорам — одним запросом.
+ *
+ * Отметка прочтения у каждого разговора своя, поэтому `groupBy` строится
+ * на списке условий «этот разговор позже этой отметки». Это один рейс к базе
+ * вместо запроса на разговор: на транзакционном пуле с одним соединением
+ * (см. `src/lib/prisma.ts`) запросы всё равно идут по очереди, и десять
+ * разговоров превращались в десять последовательных ожиданий.
+ */
+async function unreadByConversation(
+  userId: string,
+  memberships: { conversationId: string; lastReadAt: Date | null }[]
+): Promise<Map<string, number>> {
+  if (memberships.length === 0) return new Map();
+
+  const grouped = await prisma.message.groupBy({
+    by: ['conversationId'],
+    where: {
+      deletedAt: null,
+      authorId: { not: userId },
+      OR: memberships.map((m) => ({
+        conversationId: m.conversationId,
+        createdAt: m.lastReadAt ? { gt: m.lastReadAt } : undefined,
+      })),
+    },
+    _count: { _all: true },
+  });
+
+  return new Map(grouped.map((g) => [g.conversationId, g._count._all]));
 }
 
 /** Общее число непрочитанных — для значка в шапке */
@@ -79,17 +101,9 @@ export async function totalUnread(userId: string): Promise<number> {
   });
   if (memberships.length === 0) return 0;
 
+  const unread = await unreadByConversation(userId, memberships);
   let total = 0;
-  for (const m of memberships) {
-    total += await prisma.message.count({
-      where: {
-        conversationId: m.conversationId,
-        deletedAt: null,
-        authorId: { not: userId },
-        createdAt: m.lastReadAt ? { gt: m.lastReadAt } : undefined,
-      },
-    });
-  }
+  for (const count of unread.values()) total += count;
   return total;
 }
 

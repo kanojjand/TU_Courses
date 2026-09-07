@@ -167,6 +167,13 @@ export async function finishAttempt(
     },
   });
 
+  // Завершает попытку только её владелец. Внутренние вызовы (истёкшее
+  // время) идут в контексте того же студента, поэтому проверка их не ломает
+  const actor = await requireUser();
+  if (attempt.student.userId !== actor.id) {
+    throw new Error('Попытка принадлежит другому студенту.');
+  }
+
   if (attempt.status !== 'IN_PROGRESS') {
     return {
       score: dec(attempt.score),

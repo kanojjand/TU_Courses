@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Paperclip, Upload } from 'lucide-react';
 
@@ -8,7 +9,12 @@ import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea, Select, Field } from '@/components/ui/input';
 import { Alert } from '@/components/ui/alert';
-import { RichEditor } from './rich-editor';
+// Редактор нужен только для текстовой лекции — грузим его отдельным
+// файлом, чтобы конструктор курса открывался без веса tiptap
+const RichEditor = dynamic(() => import('./rich-editor').then((m) => m.RichEditor), {
+  ssr: false,
+  loading: () => <div className="h-64 animate-pulse rounded-xl bg-muted" />,
+});
 import { QuizSettings } from './quiz-settings';
 import { AssignmentSettings } from './assignment-settings';
 import { updateContentItem } from '@/server/actions/course-builder';
