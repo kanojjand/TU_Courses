@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { prisma, dec } from '@/lib/prisma';
 import { requirePermission, requireUser, AccessError } from '@/server/guards';
+import { recalculateGpa } from '@/server/grades';
 import { AUDIT_ACTIONS, writeAudit } from '@/server/audit';
 import { appealWindowDays, makeGpaSnapshot } from '@/server/assessment';
 import { letterForScore, STANDARD_GRADE_SCALE } from '@/domain/grading';
@@ -213,8 +214,12 @@ export async function decideAppeal(input: z.input<typeof decideSchema>): Promise
     reason: decision ?? null,
   });
 
-  // Пересмотр оценки меняет GPA — снимок периода должен это отразить
+  // Пересмотр оценки меняет GPA. Пересчёт нужен в обеих записях: GpaRecord —
+  // текущее значение, которое видит обучающийся в своём журнале, GpaSnapshot —
+  // зафиксированное состояние периода. Обновление одного снимка оставляло
+  // в карточке обучающегося GPA, посчитанный до апелляции
   if (status === 'UPHELD') {
+    await recalculateGpa(appeal.periodGrade.studentId);
     await makeGpaSnapshot(appeal.periodGrade.studentId, appeal.periodGrade.periodId);
   }
 

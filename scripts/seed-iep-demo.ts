@@ -334,7 +334,7 @@ async function main() {
       status: 'PUBLISHED',
       enrollments: { some: { cancelledAt: null } },
     },
-    select: { id: true, discipline: { select: { nameRu: true } } },
+    select: { id: true, discipline: { select: { nameRu: true, credits: true } } },
     orderBy: { slug: 'asc' },
   });
   const enrolled = journalCourse
@@ -430,7 +430,50 @@ async function main() {
         update: { isFinalized: true },
       });
     }
-    console.log(`  ✓ ведомость закрыта, итоговых оценок ${enrolled.length}`);
+    // Пересчёт GPA идёт вместе с оценкой: в приложении это делает
+    // recalculatePeriodGrade, но он живёт за `server-only` и в скрипт
+    // не импортируется. Без записи расчёта обучающийся видел бы в своём
+    // журнале «GPA —» и ноль освоенных кредитов при закрытой ведомости
+    const gpaCredits = journalCourse.discipline.credits;
+    // Значения берутся из самих оценок, а не из заготовки `marks`: оценка
+    // могла быть пересмотрена по апелляции, и заготовка о пересмотре не знает
+    const finalized = await prisma.periodGrade.findMany({
+      where: { courseId: journalCourse.id, isFinalized: true, gpaPoints: { not: null } },
+      select: { studentId: true, gpaPoints: true },
+    });
+    for (const g of finalized) {
+      const points = Number(g.gpaPoints);
+      const scopes = [
+        { scope: 'CUMULATIVE', scopeId: '' },
+        { scope: 'PERIOD', scopeId: periods[0].id },
+        { scope: 'YEAR', scopeId: year.id },
+      ];
+      for (const sc of scopes) {
+        await prisma.gpaRecord.upsert({
+          where: {
+            studentId_scope_scopeId: {
+              studentId: g.studentId,
+              scope: sc.scope,
+              scopeId: sc.scopeId,
+            },
+          },
+          create: {
+            studentId: g.studentId,
+            scope: sc.scope,
+            scopeId: sc.scopeId,
+            gpa: new Prisma.Decimal(points),
+            credits: gpaCredits,
+          },
+          update: {
+            gpa: new Prisma.Decimal(points),
+            credits: gpaCredits,
+            calculatedAt: new Date(),
+          },
+        });
+      }
+    }
+
+    console.log(`  ✓ ведомость закрыта, итоговых оценок ${enrolled.length}, GPA рассчитан`);
   }
 
   // ── Чаты группы и дисциплин (этап 6) ───────────────────────────────────
