@@ -93,8 +93,12 @@ export default async function AppealsPage({
           groupName: a.student.group?.name ?? null,
           disciplineName: pickLocalized(a.periodGrade.course.discipline, 'name', locale),
           periodName: a.periodGrade.course.period.name,
-          scoreBefore: decOrNull(a.periodGrade.finalScore),
-          letterBefore: a.periodGrade.letter,
+          // Оценка до пересмотра берётся из самой апелляции: после её
+          // удовлетворения текущая оценка уже новая, и колонка показывала бы
+          // «B → B» вместо «C → B». Текущая оценка остаётся запасным
+          // источником для записей, заведённых до появления поля
+          scoreBefore: decOrNull(a.scoreBefore) ?? decOrNull(a.periodGrade.finalScore),
+          letterBefore: a.letterBefore ?? a.periodGrade.letter,
           letterAfter: a.letterAfter,
           decidedBy: a.decidedBy
             ? `${a.decidedBy.lastNameRu} ${a.decidedBy.firstNameRu}`
