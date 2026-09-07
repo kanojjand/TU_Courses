@@ -105,7 +105,7 @@ npm run dev
 | `npm run dev` | Разработка |
 | `npm run build` | Сборка (включает `prisma generate`) |
 | `npm run typecheck` | Проверка типов |
-| `npm run test` | Юнит-тесты доменной логики (129 тестов) |
+| `npm run test` | Юнит-тесты доменной логики (148 тестов) |
 | `npm run verify` | Типы + тесты + сборка |
 | `npm run db:migrate` | Создание и применение миграции |
 | `npm run db:deploy` | Применение миграций (production) |

@@ -218,7 +218,8 @@
     "approveFinalGrades": "Approve transfer of final grades",
     "curricula": "Curricula",
     "groups": "Study groups",
-    "ieps": "Individual study plans"
+    "ieps": "Individual study plans",
+    "appeals": "Appeals and credit transfer"
   },
   "errors": {
     "notFoundTitle": "Page not found",

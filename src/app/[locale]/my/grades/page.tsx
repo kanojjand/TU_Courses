@@ -10,6 +10,8 @@ import { Link } from '@/i18n/routing';
 import { fmtGpa, fmtScore } from '@/lib/utils';
 import { studentAttendance, attendanceThreshold } from '@/server/attendance';
 import { AttendanceSummary } from '@/components/student/attendance-summary';
+import { AppealForm } from '@/components/student/appeal-form';
+import { appealWindowDays } from '@/server/assessment';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +42,13 @@ export default async function MyGradesPage({ params }: { params: Promise<{ local
           include: {
             discipline: true,
             period: { select: { id: true, name: true, academicYear: { select: { name: true } } } },
-            periodGrades: { where: { studentId } },
+            periodGrades: {
+              where: { studentId },
+              include: {
+                appeals: { where: { studentId }, orderBy: { filedAt: 'desc' } },
+              },
+            },
+            gradeSheets: { where: { controlPeriod: 'EXAM' }, select: { closedAt: true } },
             gradeItems: {
               orderBy: [{ controlPeriod: 'asc' }, { orderIndex: 'asc' }],
               include: { grades: { where: { studentId } } },
@@ -55,10 +63,13 @@ export default async function MyGradesPage({ params }: { params: Promise<{ local
 
   // F-LRN-06: посещаемость показывается рядом с оценками — студент смотрит
   // на успеваемость целиком, а не отдельными разделами
-  const [attendance, threshold] = await Promise.all([
+  const [attendance, threshold, appealDays] = await Promise.all([
     studentAttendance(studentId),
     attendanceThreshold(),
+    appealWindowDays(),
   ]);
+  const appealDeadlineFor = (closedAt: Date | null | undefined) =>
+    closedAt ? new Date(closedAt.getTime() + appealDays * 24 * 3600 * 1000) : null;
 
   const cumulative = gpaRecords.find((r) => r.scope === 'CUMULATIVE');
 
@@ -141,6 +152,28 @@ export default async function MyGradesPage({ params }: { params: Promise<{ local
                 </CardHeader>
 
                 <CardBody className="space-y-4">
+                  {g?.isFinalized && (
+                    <AppealForm
+                      periodGradeId={g.id}
+                      disciplineName={pickLocalized(e.course.discipline, 'name', locale)}
+                      canFile={(() => {
+                        // F-ASM-04: апелляция подаётся в установленный срок
+                        // после закрытия ведомости
+                        const deadline = appealDeadlineFor(e.course.gradeSheets[0]?.closedAt);
+                        return deadline == null || new Date() <= deadline;
+                      })()}
+                      appeals={g.appeals.map((a) => ({
+                        id: a.id,
+                        status: a.status,
+                        reason: a.reason,
+                        decision: a.decision,
+                        letterBefore: a.letterBefore,
+                        letterAfter: a.letterAfter,
+                        filedAt: a.filedAt.toISOString(),
+                      }))}
+                    />
+                  )}
+
                   {e.course.gradeItems.length > 0 && (
                     <div className="scroll-x">
                       <table className="table-dense">

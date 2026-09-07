@@ -357,6 +357,7 @@ model AcademicPeriod {
   periodGrades PeriodGrade[]
   calendar     CalendarEvent[]
   regWindows   RegistrationWindow[]
+  gpaSnapshots GpaSnapshot[]
 
   @@unique([academicYearId, ordinal])
   @@index([status])
@@ -416,6 +417,9 @@ model User {
   staffAssignments    StaffAssignment[]      @relation("StaffAssignee")
   assignmentsMade     StaffAssignment[]      @relation("StaffAssignmentAuthor")
   statusChangesMade   StudentStatusHistory[] @relation("StatusHistoryAuthor")
+  appealsDecided      GradeAppeal[]          @relation("AppealDecider")
+  transfersApproved   CreditTransfer[]       @relation("CreditTransferApprover")
+  transcriptsIssued   Transcript[]           @relation("TranscriptIssuer")
   attendanceCreated   AttendanceSession[]    @relation("AttendanceAuthor")
   attendanceMarked    AttendanceMark[]       @relation("AttendanceMarker")
   iepsAdvised         Iep[]                  @relation("IepAdvisor")
@@ -485,6 +489,10 @@ model StudentProfile {
   group            StudyGroup?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
   advisor          TeacherProfile?        @relation("AdvisorStudents", fields: [advisorId], references: [id], onDelete: SetNull)
   ieps             Iep[]
+  appeals          GradeAppeal[]
+  gpaSnapshots     GpaSnapshot[]
+  creditTransfers  CreditTransfer[]
+  transcripts      Transcript[]
   attendanceMarks  AttendanceMark[]
   memberships      GroupMembership[]
   statusHistory    StudentStatusHistory[]
@@ -587,16 +595,17 @@ model Discipline {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
-  department     Department               @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  program        EducationProgram?        @relation(fields: [programId], references: [id], onDelete: SetNull)
-  gosoMandatory  GosoMandatoryDiscipline? @relation(fields: [gosoMandatoryId], references: [id], onDelete: SetNull)
-  courses        Course[]
-  prerequisites  DisciplineLink[]         @relation("Target")
-  postrequisites DisciplineLink[]         @relation("Source")
-  hourNorms      WorkTypeNorm[]
-  gradeConfig    GradeConfig?
-  slotOptions    CurriculumSlotOption[]
-  iepItems       IepItem[]
+  department      Department               @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  program         EducationProgram?        @relation(fields: [programId], references: [id], onDelete: SetNull)
+  gosoMandatory   GosoMandatoryDiscipline? @relation(fields: [gosoMandatoryId], references: [id], onDelete: SetNull)
+  courses         Course[]
+  prerequisites   DisciplineLink[]         @relation("Target")
+  postrequisites  DisciplineLink[]         @relation("Source")
+  hourNorms       WorkTypeNorm[]
+  gradeConfig     GradeConfig?
+  slotOptions     CurriculumSlotOption[]
+  iepItems        IepItem[]
+  creditTransfers CreditTransfer[]
 
   @@index([departmentId])
   @@index([programId])
@@ -1222,6 +1231,7 @@ model PeriodGrade {
   course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
   period  AcademicPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  appeals GradeAppeal[]
 
   @@unique([courseId, studentId])
   @@index([studentId, periodId])
@@ -1712,10 +1722,11 @@ model CurriculumSlot {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
-  curriculum Curriculum             @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
-  module     CurriculumModule?      @relation(fields: [moduleId], references: [id], onDelete: SetNull)
-  options    CurriculumSlotOption[]
-  iepItems   IepItem[]
+  curriculum      Curriculum             @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  module          CurriculumModule?      @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  options         CurriculumSlotOption[]
+  iepItems        IepItem[]
+  creditTransfers CreditTransfer[]
 
   @@index([curriculumId, cycle, component])
   @@map("curriculum_slots")
@@ -2078,4 +2089,146 @@ model CourseGroup {
   @@id([courseId, groupId])
   @@index([groupId])
   @@map("course_groups")
+}
+
+// ════════════════ Оценивание — этап 5 (раздел 4.7 ТЗ) ═════════════════════
+//
+// Ведомости, шкала, GPA и транскрипт сделаны на первом этапе. Здесь
+// добавлено то, чего не хватало: апелляция на итоговую оценку, снимки GPA
+// на конец периода, перезачёт кредитов при переводе и мобильности,
+// и транскрипт как зафиксированный документ.
+
+/// Ход рассмотрения апелляции (F-ASM-04)
+enum AppealStatus {
+  FILED // подана
+  IN_REVIEW // рассматривается комиссией
+  UPHELD // удовлетворена, оценка пересмотрена
+  REJECTED // отклонена
+  WITHDRAWN // отозвана обучающимся
+}
+
+/// Основание перезачёта кредитов (F-ASM-10)
+enum CreditSourceKind {
+  TRANSFER // перевод из другой организации образования
+  REINSTATEMENT // восстановление
+  MOBILITY // академическая мобильность
+  NON_FORMAL // неформальное образование
+  PRIOR_EDU // предыдущее образование
+}
+
+/// Вид транскрипта как документа (F-ASM-08)
+enum TranscriptKind {
+  CURRENT // текущий, по запросу обучающегося
+  EXPULSION // при отчислении (Типовые правила, п. 41)
+  DIPLOMA_SUPPLEMENT // приложение к диплому
+  MOBILITY // для академической мобильности
+}
+
+/// Апелляция на итоговую оценку (F-ASM-04).
+/// Рассматривается комиссией; результат попадает в историю оценки.
+model GradeAppeal {
+  id            String       @id @default(cuid())
+  periodGradeId String
+  studentId     String
+  reason        String       @db.Text
+  status        AppealStatus @default(FILED)
+  filedAt       DateTime     @default(now())
+  /// Решение комиссии — обязательно при закрытии апелляции
+  decision      String?      @db.Text
+  /// Оценка до пересмотра: без неё непонятно, что именно изменила комиссия
+  scoreBefore   Decimal?     @db.Decimal(5, 2)
+  letterBefore  String?
+  scoreAfter    Decimal?     @db.Decimal(5, 2)
+  letterAfter   String?
+  decidedById   String?
+  decidedAt     DateTime?
+  updatedAt     DateTime     @updatedAt
+
+  periodGrade PeriodGrade    @relation(fields: [periodGradeId], references: [id], onDelete: Cascade)
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  decidedBy   User?          @relation("AppealDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([studentId, status])
+  @@index([status, filedAt])
+  @@map("grade_appeals")
+}
+
+/// Снимок GPA на конец академического периода (F-ASM-06).
+/// Нужен потому, что GPA пересчитывается при каждом изменении оценки:
+/// без снимка нельзя ответить, каким GPA был на момент перевода на курс.
+model GpaSnapshot {
+  id             String   @id @default(cuid())
+  studentId      String
+  periodId       String?
+  academicYearId String?
+  gpaPeriod      Decimal? @db.Decimal(4, 3)
+  gpaCumulative  Decimal? @db.Decimal(4, 3)
+  creditsPeriod  Decimal  @default(0) @db.Decimal(6, 2)
+  creditsTotal   Decimal  @default(0) @db.Decimal(6, 2)
+  socialGpa      Decimal? @db.Decimal(4, 3)
+  /// Курс обучения на момент снимка — для проверки переводного балла
+  studyYear      Int?
+  computedAt     DateTime @default(now())
+
+  student StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  period  AcademicPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, periodId])
+  @@index([studentId, computedAt])
+  @@map("gpa_snapshots")
+}
+
+/// Перезачёт кредитов при переводе, восстановлении и после мобильности
+/// (F-ASM-10, Типовые правила, п. 30)
+model CreditTransfer {
+  id                   String           @id @default(cuid())
+  studentId            String
+  /// Позиция учебного плана, которую закрывает перезачёт
+  slotId               String?
+  /// Дисциплина принимающей программы, если сопоставление найдено
+  disciplineId         String?
+  sourceKind           CreditSourceKind
+  /// Организация образования, где дисциплина освоена
+  sourceOrg            String?
+  sourceDisciplineName String
+  credits              Decimal          @db.Decimal(5, 2)
+  letter               String?
+  gpaPoint             Decimal?         @db.Decimal(3, 2)
+  /// Реквизиты верифицируемого транскрипта — основание перезачёта
+  documentRef          String?
+  approvedById         String?
+  approvedAt           DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  student    StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  slot       CurriculumSlot? @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  discipline Discipline?     @relation(fields: [disciplineId], references: [id], onDelete: SetNull)
+  approvedBy User?           @relation("CreditTransferApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([studentId])
+  @@map("credit_transfers")
+}
+
+/// Транскрипт как выданный документ (F-ASM-08).
+/// Состав записей фиксируется в payload: выданный транскрипт не должен
+/// меняться задним числом вслед за пересчётом оценок.
+model Transcript {
+  id           String         @id @default(cuid())
+  studentId    String
+  kind         TranscriptKind @default(CURRENT)
+  language     LanguageCode   @default(RU)
+  number       String         @unique
+  issuedAt     DateTime       @default(now())
+  issuedById   String?
+  gpa          Decimal?       @db.Decimal(4, 3)
+  creditsTotal Decimal        @default(0) @db.Decimal(6, 2)
+  /// Зафиксированный состав записей на момент выдачи
+  payload      Json
+
+  student  StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  issuedBy User?          @relation("TranscriptIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+
+  @@index([studentId, kind])
+  @@map("transcripts")
 }

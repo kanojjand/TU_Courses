@@ -384,6 +384,53 @@ async function main() {
     console.log('  · пропущено: нет курса с зарегистрированными обучающимися');
   }
 
+  // ── Закрытая ведомость с итоговой оценкой (этап 5) ─────────────────────
+  // Без неё нельзя пройти путь апелляции: она подаётся на итоговую оценку
+  // в установленный срок после закрытия ведомости.
+  console.log('→ Закрытая ведомость и итоговая оценка…');
+  if (journalCourse && enrolled.length > 0) {
+    await prisma.gradeSheet.upsert({
+      where: { courseId_controlPeriod: { courseId: journalCourse.id, controlPeriod: 'EXAM' } },
+      create: {
+        courseId: journalCourse.id,
+        controlPeriod: 'EXAM',
+        number: `ВЕД-${curriculum.admissionYear}-001`,
+        status: 'CLOSED',
+        closedAt: new Date(),
+      },
+      update: { status: 'CLOSED', closedAt: new Date() },
+    });
+
+    // Оценка C — ниже порога диплома с отличием, чтобы проверка на отличие
+    // показывала невыполненное условие, а не пустой результат
+    const marks = [
+      { score: 68, letter: 'C', points: 2.0, traditional: 'Удовлетворительно', ects: 'D' },
+      { score: 91, letter: 'A-', points: 3.67, traditional: 'Отлично', ects: 'B' },
+    ];
+    for (const [i, e] of enrolled.entries()) {
+      const m = marks[i % marks.length];
+      await prisma.periodGrade.upsert({
+        where: { courseId_studentId: { courseId: journalCourse.id, studentId: e.studentId } },
+        create: {
+          courseId: journalCourse.id,
+          studentId: e.studentId,
+          periodId: periods[0].id,
+          admissionScore: new Prisma.Decimal(m.score),
+          isAdmitted: true,
+          examScore: new Prisma.Decimal(m.score),
+          finalScore: new Prisma.Decimal(m.score),
+          letter: m.letter,
+          gpaPoints: new Prisma.Decimal(m.points),
+          traditional: m.traditional,
+          ects: m.ects,
+          isFinalized: true,
+        },
+        update: { isFinalized: true },
+      });
+    }
+    console.log(`  ✓ ведомость закрыта, итоговых оценок ${enrolled.length}`);
+  }
+
   console.log('\n✓ Данные этапа 3 загружены.');
   console.log('  Сценарий: студент → /my/iep → отправить эдвайзеру →');
   console.log('  g.tulegenova@demo.example.kz → /advisor → согласовать →');
