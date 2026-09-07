@@ -12,6 +12,7 @@ import { Alert, EmptyState } from '@/components/ui/alert';
 import { PRACTICE_KIND_LABELS, PLACEMENT_STATUS_LABELS } from '@/domain/attestation';
 import type { PracticeKindCode, PlacementStatusCode } from '@/domain/attestation';
 import { saveDiaryEntry } from '@/server/actions/attestation';
+import { plural } from '@/lib/utils';
 
 export interface DiaryEntryRow {
   id: string;
@@ -95,7 +96,9 @@ export function PracticeDiary({ placements }: { placements: StudentPlacementRow[
                   <dd className="flex items-center gap-1 font-medium">
                     <CalendarDays size={14} aria-hidden /> {p.startsOn} — {p.endsOn}
                   </dd>
-                  <dd className="text-xs text-fg-muted">{p.credits} кредитов</dd>
+                  <dd className="text-xs text-fg-muted">
+                    {p.credits} {plural(p.credits, 'кредит', 'кредита', 'кредитов')}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-fg-muted">Руководитель от вуза</dt>
@@ -207,7 +210,10 @@ export function PracticeDiary({ placements }: { placements: StudentPlacementRow[
                       <tr className="font-medium">
                         <td>Итого</td>
                         <td className="text-right tabular-nums">{hours || '—'}</td>
-                        <td colSpan={2}>{p.entries.length} записей</td>
+                        <td colSpan={2}>
+                          {p.entries.length}{' '}
+                          {plural(p.entries.length, 'запись', 'записи', 'записей')}
+                        </td>
                       </tr>
                     </tbody>
                   </table>

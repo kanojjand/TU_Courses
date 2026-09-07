@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { HOURS_PER_CREDIT } from '../src/domain/constants';
+import { plural } from '../src/lib/utils';
 import {
   hoursIndicatorText,
   minutesToAcademicHours,
@@ -764,5 +765,21 @@ describe('Статистика сложности вопросов (F-T-13)', ()
     const stats = questionDifficultyStats([]);
     assert.equal(stats.successRate, 0);
     assert.equal(stats.label, 'нет данных');
+  });
+});
+describe('Склонение существительного при числительном', () => {
+  it('различает три формы', () => {
+    assert.equal(plural(1, 'запись', 'записи', 'записей'), 'запись');
+    assert.equal(plural(2, 'запись', 'записи', 'записей'), 'записи');
+    assert.equal(plural(5, 'запись', 'записи', 'записей'), 'записей');
+    assert.equal(plural(0, 'запись', 'записи', 'записей'), 'записей');
+  });
+
+  it('второй десяток берёт форму множественного числа', () => {
+    // 11…14 склоняются не по последней цифре: «одиннадцать записей»
+    assert.equal(plural(11, 'запись', 'записи', 'записей'), 'записей');
+    assert.equal(plural(12, 'запись', 'записи', 'записей'), 'записей');
+    assert.equal(plural(21, 'запись', 'записи', 'записей'), 'запись');
+    assert.equal(plural(102, 'запись', 'записи', 'записей'), 'записи');
   });
 });
