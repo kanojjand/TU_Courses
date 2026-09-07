@@ -224,6 +224,11 @@ enum NotificationType {
   SUBMISSION_RETURNED
   COURSE_REVIEW
   SYSTEM
+  // Этап 6: события коммуникаций и учебного процесса
+  CHAT_MESSAGE
+  IEP_STATUS
+  APPEAL_STATUS
+  ORDER_ISSUED
 }
 
 /// Профиль оценивания дисциплины (раздел 2.3)
@@ -253,7 +258,8 @@ model Faculty {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  departments Department[]
+  departments   Department[]
+  conversations Conversation[]
 
   @@map("faculties")
 }
@@ -269,10 +275,11 @@ model Department {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  faculty     Faculty            @relation(fields: [facultyId], references: [id], onDelete: Restrict)
-  programs    EducationProgram[]
-  disciplines Discipline[]
-  teachers    TeacherProfile[]
+  faculty       Faculty            @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  programs      EducationProgram[]
+  disciplines   Discipline[]
+  teachers      TeacherProfile[]
+  conversations Conversation[]
 
   @@index([facultyId])
   @@map("departments")
@@ -405,26 +412,34 @@ model User {
   consents            Consent[]
   activityLogs        ActivityLog[]
   timeSessions        TimeSession[]
-  auditLogs           AuditLog[]             @relation("AuditActor")
+  auditLogs           AuditLog[]               @relation("AuditActor")
   notifications       Notification[]
-  gradesGiven         Grade[]                @relation("GradedBy")
-  submissionsReviewed Submission[]           @relation("ReviewedBy")
-  closedSheets        GradeSheet[]           @relation("ClosedBy")
+  gradesGiven         Grade[]                  @relation("GradedBy")
+  submissionsReviewed Submission[]             @relation("ReviewedBy")
+  closedSheets        GradeSheet[]             @relation("ClosedBy")
   announcements       Announcement[]
-  curriculaCreated    Curriculum[]           @relation("CurriculumAuthor")
-  curriculaApproved   Curriculum[]           @relation("CurriculumApprover")
-  validationRuns      CurriculumValidation[] @relation("ValidationRunner")
-  staffAssignments    StaffAssignment[]      @relation("StaffAssignee")
-  assignmentsMade     StaffAssignment[]      @relation("StaffAssignmentAuthor")
-  statusChangesMade   StudentStatusHistory[] @relation("StatusHistoryAuthor")
-  appealsDecided      GradeAppeal[]          @relation("AppealDecider")
-  transfersApproved   CreditTransfer[]       @relation("CreditTransferApprover")
-  transcriptsIssued   Transcript[]           @relation("TranscriptIssuer")
-  attendanceCreated   AttendanceSession[]    @relation("AttendanceAuthor")
-  attendanceMarked    AttendanceMark[]       @relation("AttendanceMarker")
-  iepsAdvised         Iep[]                  @relation("IepAdvisor")
-  iepsApproved        Iep[]                  @relation("IepApprover")
-  iepsConfirmed       Iep[]                  @relation("IepConfirmer")
+  curriculaCreated    Curriculum[]             @relation("CurriculumAuthor")
+  curriculaApproved   Curriculum[]             @relation("CurriculumApprover")
+  validationRuns      CurriculumValidation[]   @relation("ValidationRunner")
+  staffAssignments    StaffAssignment[]        @relation("StaffAssignee")
+  assignmentsMade     StaffAssignment[]        @relation("StaffAssignmentAuthor")
+  statusChangesMade   StudentStatusHistory[]   @relation("StatusHistoryAuthor")
+  conversations       ConversationMember[]
+  conversationsMade   Conversation[]           @relation("ConversationAuthor")
+  messages            Message[]                @relation("MessageAuthor")
+  messagesRemoved     Message[]                @relation("MessageRemover")
+  reactions           MessageReaction[]
+  announcementAcks    AnnouncementAck[]
+  notifyPrefs         NotificationPreference[]
+  deviceTokens        DeviceToken[]
+  appealsDecided      GradeAppeal[]            @relation("AppealDecider")
+  transfersApproved   CreditTransfer[]         @relation("CreditTransferApprover")
+  transcriptsIssued   Transcript[]             @relation("TranscriptIssuer")
+  attendanceCreated   AttendanceSession[]      @relation("AttendanceAuthor")
+  attendanceMarked    AttendanceMark[]         @relation("AttendanceMarker")
+  iepsAdvised         Iep[]                    @relation("IepAdvisor")
+  iepsApproved        Iep[]                    @relation("IepApprover")
+  iepsConfirmed       Iep[]                    @relation("IepConfirmer")
 
   @@index([status])
   @@map("users")
@@ -548,13 +563,14 @@ model StudyGroup {
   isActive      Boolean      @default(true)
   createdAt     DateTime     @default(now())
 
-  program     EducationProgram  @relation(fields: [programId], references: [id], onDelete: Restrict)
-  curriculum  Curriculum?       @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
-  curator     TeacherProfile?   @relation("CuratedGroups", fields: [curatorId], references: [id], onDelete: SetNull)
-  students    StudentProfile[]
-  memberships GroupMembership[]
-  assignments StaffAssignment[]
-  courses     CourseGroup[]
+  program       EducationProgram  @relation(fields: [programId], references: [id], onDelete: Restrict)
+  curriculum    Curriculum?       @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+  curator       TeacherProfile?   @relation("CuratedGroups", fields: [curatorId], references: [id], onDelete: SetNull)
+  students      StudentProfile[]
+  memberships   GroupMembership[]
+  assignments   StaffAssignment[]
+  courses       CourseGroup[]
+  conversations Conversation[]
 
   @@unique([programId, name])
   @@index([programId])
@@ -689,6 +705,7 @@ model Course {
   periodGrades  PeriodGrade[]
   groups        CourseGroup[]
   attendance    AttendanceSession[]
+  conversations Conversation[]
 
   @@unique([disciplineId, periodId, streamName])
   @@index([periodId])
@@ -1464,18 +1481,31 @@ model Notification {
 }
 
 model Announcement {
-  id        String   @id @default(cuid())
-  courseId  String
-  authorId  String
-  title     String
-  body      String   @db.Text
-  isPinned  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  /// Объявление курса. Для адресных объявлений (F-COM-05) не заполняется —
+  /// область задаётся записями AnnouncementTarget
+  courseId    String?
+  authorId    String
+  title       String
+  body        String    @db.Text
+  isPinned    Boolean   @default(false)
+  /// F-COM-05: требует подтверждения прочтения
+  isImportant Boolean   @default(false)
+  /// F-COM-07: закреплённое нормативное объявление (аккредитация, п. 31).
+  /// Показывается над шапкой первым и не смещается вниз
+  isNormative Boolean   @default(false)
+  publishedAt DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
 
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  author User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  course  Course?              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  author  User                 @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  targets AnnouncementTarget[]
+  acks    AnnouncementAck[]
 
   @@index([courseId])
+  @@index([isNormative, publishedAt])
   @@map("announcements")
 }
 
@@ -2231,4 +2261,218 @@ model Transcript {
 
   @@index([studentId, kind])
   @@map("transcripts")
+}
+
+// ═══════════════ Коммуникации — этап 6 (раздел 4.10 ТЗ) ═══════════════════
+//
+// Живое обновление сообщений здесь не реализуется: приложение развёрнуто
+// на Vercel, где нет постоянного WebSocket-соединения. Чат работает на
+// серверных действиях с обновлением после отправки; подключение сокет-сервера
+// не потребует правки модели данных.
+
+/// Тип разговора (F-COM-01)
+enum ConversationKind {
+  GROUP // чат академической группы: куратор и обучающиеся
+  COURSE // чат реализации дисциплины: преподаватель и зарегистрированные
+  DIRECT // личный диалог двух пользователей
+  DEPARTMENT // чат кафедры
+  FACULTY // чат факультета
+}
+
+/// Роль участника разговора — определяет права модерации (F-COM-04)
+enum ConversationRole {
+  OWNER // куратор группы, ведущий преподаватель курса
+  MODERATOR // тьютор, ассистент
+  MEMBER // обучающийся, рядовой участник
+}
+
+/// Область действия объявления (F-COM-05)
+enum AnnouncementScope {
+  UNIVERSITY
+  FACULTY
+  DEPARTMENT
+  PROGRAM
+  GROUP
+  COURSE
+}
+
+/// Канал доставки уведомления (F-COM-06)
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  PUSH
+}
+
+/// Разговор: чат группы, курса, кафедры, факультета или личный диалог
+model Conversation {
+  id            String           @id @default(cuid())
+  kind          ConversationKind
+  title         String?
+  /// Область: группа, курс, кафедра или факультет — по типу разговора
+  groupId       String?
+  courseId      String?
+  departmentId  String?
+  facultyId     String?
+  /// F-COM-04: сообщения от рядовых участников отключены модератором
+  isReadOnly    Boolean          @default(false)
+  isArchived    Boolean          @default(false)
+  createdById   String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  /// Время последнего сообщения — по нему сортируется список разговоров
+  lastMessageAt DateTime?
+
+  group      StudyGroup?          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  course     Course?              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  department Department?          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  faculty    Faculty?             @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  createdBy  User?                @relation("ConversationAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  members    ConversationMember[]
+  messages   Message[]
+
+  @@unique([kind, groupId])
+  @@unique([kind, courseId])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+/// Участник разговора со своим состоянием прочтения (F-COM-03)
+model ConversationMember {
+  id             String           @id @default(cuid())
+  conversationId String
+  userId         String
+  role           ConversationRole @default(MEMBER)
+  /// Время последнего прочитанного сообщения — основа счётчика непрочитанных
+  lastReadAt     DateTime?
+  isMuted        Boolean          @default(false)
+  joinedAt       DateTime         @default(now())
+  leftAt         DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId, leftAt])
+  @@map("conversation_members")
+}
+
+/// Сообщение чата (F-COM-02)
+model Message {
+  id             String    @id @default(cuid())
+  conversationId String
+  authorId       String?
+  body           String    @db.Text
+  /// Ответ на сообщение
+  replyToId      String?
+  /// Правка и удаление своих сообщений сохраняются с пометкой, а не стирают
+  /// запись: удалённое сообщение остаётся в истории как «удалено»
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  deletedById    String?
+  isPinned       Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+
+  conversation Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author       User?               @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  deletedBy    User?               @relation("MessageRemover", fields: [deletedById], references: [id], onDelete: SetNull)
+  replyTo      Message?            @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]           @relation("MessageReply")
+  attachments  MessageAttachment[]
+  reactions    MessageReaction[]
+
+  @@index([conversationId, createdAt])
+  @@index([conversationId, isPinned])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id         String   @id @default(cuid())
+  messageId  String
+  /// Ключ объекта в файловом хранилище
+  storageKey String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  createdAt  DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("message_attachments")
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@map("message_reactions")
+}
+
+/// Адресация объявления (F-COM-05).
+/// Несколько целей на объявление: одно и то же сообщение адресуют
+/// и факультету, и отдельной группе.
+model AnnouncementTarget {
+  id             String            @id @default(cuid())
+  announcementId String
+  scope          AnnouncementScope
+  /// Идентификатор объекта области; для UNIVERSITY не заполняется
+  scopeId        String?
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, scope, scopeId])
+  @@index([scope, scopeId])
+  @@map("announcement_targets")
+}
+
+/// Подтверждение прочтения важного объявления (F-COM-05)
+model AnnouncementAck {
+  id             String   @id @default(cuid())
+  announcementId String
+  userId         String
+  acknowledgedAt DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@map("announcement_acks")
+}
+
+/// Настройка каналов доставки уведомлений пользователем (F-COM-06).
+/// Критические типы отключить нельзя — проверка в src/domain/notify.ts.
+model NotificationPreference {
+  id      String              @id @default(cuid())
+  userId  String
+  type    NotificationType
+  channel NotificationChannel
+  enabled Boolean             @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, channel])
+  @@map("notification_preferences")
+}
+
+/// Токен устройства для push-уведомлений (F-COM-06)
+model DeviceToken {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique
+  platform   String   @default("web")
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
 }

@@ -236,6 +236,7 @@ export function adminSectionsFor(user: Pick<SessionUser, 'roles'> | null): strin
   if (canAny(user, ['course:review', 'course:edit_any'])) sections.push('courses');
   if (can(user, 'gradesheet:view')) sections.push('gradesheets');
   if (can(user, 'grade:edit_after_close')) sections.push('appeals');
+  if (canAny(user, ['report:view', 'settings:manage'])) sections.push('announcements');
   if (can(user, 'report:view')) sections.push('reports');
   if (can(user, 'integration:manage') || can(user, 'integration:approve_final'))
     sections.push('integrations');

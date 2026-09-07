@@ -68,7 +68,8 @@
     "teach": "My courses",
     "admin": "Administration",
     "electives": "Elective course catalogue",
-    "iep": "My study plan"
+    "iep": "My study plan",
+    "chats": "Chats"
   },
   "home": {
     "heroTitle": "University online learning platform",
@@ -219,7 +220,8 @@
     "curricula": "Curricula",
     "groups": "Study groups",
     "ieps": "Individual study plans",
-    "appeals": "Appeals and credit transfer"
+    "appeals": "Appeals and credit transfer",
+    "announcements": "Announcements"
   },
   "errors": {
     "notFoundTitle": "Page not found",

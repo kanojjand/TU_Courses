@@ -1,6 +1,8 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
+import { provisionAll } from '../src/server/chat-provision';
+
 /**
  * Демонстрационные данные этапа 3: учебный год, окна регистрации,
  * академическая группа по плану 6В01601 и обучающиеся с эдвайзером.
@@ -430,6 +432,16 @@ async function main() {
     }
     console.log(`  ✓ ведомость закрыта, итоговых оценок ${enrolled.length}`);
   }
+
+  // ── Чаты группы и дисциплин (этап 6) ───────────────────────────────────
+  // Состав чатов определяется составом группы и списком зарегистрированных,
+  // поэтому синхронизация идёт последней — после всех зачислений
+  console.log('→ Чаты группы и дисциплин…');
+  const chats = await provisionAll();
+  console.log(
+    `  ✓ разговоров создано ${chats.conversationsCreated}, ` +
+      `участников добавлено ${chats.membersAdded}`
+  );
 
   console.log('\n✓ Данные этапа 3 загружены.');
   console.log('  Сценарий: студент → /my/iep → отправить эдвайзеру →');

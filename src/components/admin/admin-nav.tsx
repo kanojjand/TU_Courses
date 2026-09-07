@@ -16,6 +16,7 @@ const LABEL_KEYS: Record<string, string> = {
   courses: 'courses',
   gradesheets: 'gradesheets',
   appeals: 'appeals',
+  announcements: 'announcements',
   reports: 'reports',
   integrations: 'integrations',
   audit: 'audit',

@@ -29,6 +29,8 @@ export async function SiteHeader({
   ];
 
   if (user) {
+    // F-COM-01: чаты доступны всем ролям, а не только обучающимся
+    links.unshift({ href: '/my/chats', label: t('chats') });
     if (hasRole(user, 'STUDENT')) {
       links.unshift(
         { href: '/dashboard', label: t('dashboard') },
