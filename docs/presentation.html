@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TU Courses</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@700&family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    /* Токены — из src/app/globals.css проекта, значение в значение */
+    --bg: #FBF7F8;
+    --surface: #FFFFFF;
+    --muted: #F9F0F1;
+    --border: #EBDFE2;
+    --fg: #1A1215;
+    --fg-muted: #756A6D;
+    --brand: #E70426;
+    --brand-vivid: #F90428;
+    --brand-fg: #FFFFFF;
+    --brand-soft: #FEE9EC;
+    --success: #117A4C;
+    --warning: #B06A06;
+    --danger: #BE2A2A;
+    --success-soft: #E4F3EC;
+    --warning-soft: #FBF0DE;
+
+    --r-sm: 0.5rem;
+    --r-md: 0.75rem;
+    --r-lg: 1rem;
+    --r-xl: 1.25rem;
+
+    --sh-sm: 0 1px 2px rgb(26 18 21 / 0.06), 0 1px 3px rgb(26 18 21 / 0.05);
+    --sh-md: 0 4px 12px rgb(26 18 21 / 0.07), 0 2px 4px rgb(26 18 21 / 0.04);
+
+    --display: 'PT Serif', 'Georgia', 'Times New Roman', serif;
+    --body: 'Golos Text', 'Segoe UI', 'Noto Sans', Arial, sans-serif;
+    --mono: 'IBM Plex Mono', 'Consolas', 'Courier New', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #140F11;
+      --surface: #1E181A;
+      --muted: #2A2225;
+      --border: #3D3236;
+      --fg: #F2ECEE;
+      --fg-muted: #A2969A;
+      --brand: #FF7A8A;
+      --brand-vivid: #FF7A8A;
+      --brand-fg: #2B0209;
+      --brand-soft: #38181D;
+      --success: #4AC48A;
+      --warning: #E8B44A;
+      --danger: #F47C7C;
+      --success-soft: #16301F;
+      --warning-soft: #33260F;
+      --sh-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+      --sh-md: 0 4px 14px rgb(0 0 0 / 0.45);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #140F11;
+    --surface: #1E181A;
+    --muted: #2A2225;
+    --border: #3D3236;
+    --fg: #F2ECEE;
+    --fg-muted: #A2969A;
+    --brand: #FF7A8A;
+    --brand-vivid: #FF7A8A;
+    --brand-fg: #2B0209;
+    --brand-soft: #38181D;
+    --success: #4AC48A;
+    --warning: #E8B44A;
+    --danger: #F47C7C;
+    --success-soft: #16301F;
+    --warning-soft: #33260F;
+    --sh-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --sh-md: 0 4px 14px rgb(0 0 0 / 0.45);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: 2.5rem;
+    max-width: 82rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 5rem;
+    align-items: start;
+  }
+  @media (max-width: 60rem) {
+    .shell { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding: 1.5rem 1rem 3rem; }
+  }
+
+  /* ── Боковая навигация ─────────────────────────────────── */
+  .rail { position: sticky; top: 2rem; }
+  @media (max-width: 60rem) { .rail { position: static; } }
+
+  .rail-brand {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding-bottom: 1rem; margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .mark {
+    width: 1.5rem; height: 1.5rem; flex: none; border-radius: 0.35rem;
+    background: var(--brand-vivid);
+    display: grid; place-items: center;
+    color: #fff; font-family: var(--display); font-size: 0.9rem; line-height: 1;
+  }
+  .rail-name { font-weight: 600; letter-spacing: -0.01em; }
+  .rail-sub { font-size: 0.75rem; color: var(--fg-muted); }
+
+  .rail-nav { display: flex; flex-direction: column; gap: 0.1rem; }
+  .rail-nav a {
+    display: grid; grid-template-columns: 1.6rem 1fr; gap: 0.35rem;
+    padding: 0.3rem 0.45rem; border-radius: var(--r-sm);
+    color: var(--fg-muted); text-decoration: none; font-size: 0.82rem; line-height: 1.35;
+  }
+  .rail-nav a:hover { background: var(--muted); color: var(--fg); }
+  .rail-nav a .n { font-family: var(--mono); font-size: 0.7rem; opacity: 0.75; padding-top: 0.15rem; }
+  .rail-nav a:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  @media (max-width: 60rem) {
+    .rail-nav { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
+  }
+
+  /* ── Секции ─────────────────────────────────────────────── */
+  .deck { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 2rem 2.25rem 2.25rem;
+    scroll-margin-top: 1.5rem;
+  }
+  @media (max-width: 40rem) { section { padding: 1.5rem 1.25rem 1.75rem; } }
+
+  .eyebrow {
+    display: flex; align-items: baseline; gap: 0.6rem;
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--brand); margin-bottom: 0.5rem;
+  }
+  .eyebrow .rule { flex: 1; height: 1px; background: var(--border); }
+
+  h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.08; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.4rem, 3vw, 1.85rem); line-height: 1.15; letter-spacing: -0.015em; }
+  h3 { font-size: 1.02rem; line-height: 1.3; font-family: var(--body); font-weight: 600; }
+
+  section > p { max-width: 65ch; }
+  p { margin: 0.75rem 0 0; }
+  .lede { font-size: 1.06rem; color: var(--fg-muted); }
+  strong { font-weight: 600; }
+  code { font-family: var(--mono); font-size: 0.86em; background: var(--muted); padding: 0.1em 0.35em; border-radius: 0.3rem; }
+  a { color: var(--brand); }
+
+  /* ── Титул ──────────────────────────────────────────────── */
+  .cover { padding: 2.75rem 2.25rem; }
+  .cover-top { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.75rem; }
+  .cover-mark { width: 2.6rem; height: 2.6rem; border-radius: 0.6rem; font-size: 1.4rem; }
+  .cover h1 { margin-bottom: 0.75rem; }
+  .cover .lede { max-width: 44ch; font-size: 1.15rem; }
+  .cover-meta {
+    display: flex; flex-wrap: wrap; gap: 0.5rem 2rem;
+    margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border);
+    font-size: 0.86rem; color: var(--fg-muted);
+  }
+  .cover-meta b { display: block; color: var(--fg); font-weight: 600; font-size: 0.95rem; }
+
+  /* ── Плитки показателей ─────────────────────────────────── */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1px; margin-top: 1.5rem; background: var(--border); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+  .tile { background: var(--surface); padding: 1.1rem 1.15rem; }
+  .tile .v { font-family: var(--display); font-size: 1.9rem; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .tile .k { font-size: 0.78rem; color: var(--fg-muted); margin-top: 0.4rem; line-height: 1.3; }
+
+  /* ── Поток ролей ────────────────────────────────────────── */
+  .flow { margin-top: 1.5rem; display: flex; flex-direction: column; }
+  .step { display: grid; grid-template-columns: 10.5rem 1fr; gap: 1.25rem; align-items: start; padding: 0.55rem 0; position: relative; }
+  @media (max-width: 46rem) { .step { grid-template-columns: 1fr; gap: 0.3rem; } }
+  .step + .step::before {
+    content: ""; position: absolute; left: 4.6rem; top: -0.35rem; height: 0.7rem; width: 1px; background: var(--border);
+  }
+  @media (max-width: 46rem) { .step + .step::before { display: none; } }
+  .who {
+    justify-self: start; font-size: 0.78rem; font-weight: 600;
+    padding: 0.22rem 0.6rem; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--muted); color: var(--fg);
+    white-space: nowrap;
+  }
+  .who.r { background: var(--brand-soft); border-color: transparent; color: var(--brand); }
+  .did { font-size: 0.94rem; padding-top: 0.1rem; }
+  .did em { font-style: normal; color: var(--fg-muted); display: block; font-size: 0.83rem; margin-top: 0.1rem; }
+
+  /* ── Таблицы ────────────────────────────────────────────── */
+  .scroll { overflow-x: auto; margin-top: 1.5rem; border: 1px solid var(--border); border-radius: var(--r-lg); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+  th, td { padding: 0.55rem 0.7rem; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  thead th {
+    font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--fg-muted); font-weight: 600; white-space: nowrap;
+    background: var(--muted); position: sticky; top: 0;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  .matrix td:not(:first-child), .matrix th:not(:first-child) { text-align: center; }
+  .matrix td:first-child { font-weight: 500; white-space: nowrap; }
+  .yes { color: var(--brand); font-weight: 700; }
+  .no { color: var(--border); }
+  .grouprow td {
+    background: var(--muted); font-family: var(--mono); font-size: 0.68rem;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); font-weight: 500;
+  }
+  .num { font-variant-numeric: tabular-nums; text-align: right; }
+
+  /* ── Карточки правил ────────────────────────────────────── */
+  .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.9rem; margin-top: 1.5rem; }
+  .rule-card { border: 1px solid var(--border); border-radius: var(--r-md); padding: 1rem 1.1rem; background: var(--bg); }
+  .rule-card h3 { margin-bottom: 0.35rem; }
+  .rule-card p { margin: 0; font-size: 0.87rem; color: var(--fg-muted); }
+  .rule-card .tag { font-family: var(--mono); font-size: 0.68rem; color: var(--brand); letter-spacing: 0.06em; display: block; margin-bottom: 0.45rem; }
+
+  /* ── Этапы ──────────────────────────────────────────────── */
+  .stages { margin-top: 1.5rem; display: grid; gap: 0.5rem; }
+  .stage { display: grid; grid-template-columns: 2.4rem 7rem 1fr; gap: 1rem; align-items: baseline; padding: 0.65rem 0.9rem; border-radius: var(--r-md); background: var(--bg); border: 1px solid var(--border); }
+  @media (max-width: 46rem) { .stage { grid-template-columns: 2.4rem 1fr; } .stage .mods { grid-column: 2; } }
+  .stage .no-n { font-family: var(--display); font-size: 1.3rem; color: var(--brand); line-height: 1; }
+  .stage .mods { font-family: var(--mono); font-size: 0.74rem; color: var(--fg-muted); letter-spacing: 0.04em; }
+  .stage .what { font-size: 0.9rem; }
+
+  /* ── Архитектура ────────────────────────────────────────── */
+  .arch { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
+  .layer { border: 1px solid var(--border); border-radius: var(--r-md); padding: 0.85rem 1rem; background: var(--bg); }
+  .layer-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; }
+  .layer-head b { font-size: 0.92rem; }
+  .layer-head span { font-size: 0.78rem; color: var(--fg-muted); }
+  .layer .parts { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.6rem; }
+  .chip { font-family: var(--mono); font-size: 0.72rem; padding: 0.18rem 0.5rem; border-radius: 0.35rem; background: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
+  .arrow { text-align: center; color: var(--fg-muted); font-size: 0.9rem; line-height: 1; }
+  .layer.accent { border-color: var(--brand); background: var(--brand-soft); }
+  .layer.accent .chip { background: var(--surface); }
+
+  /* ── Списки ─────────────────────────────────────────────── */
+  ul.clean { list-style: none; padding: 0; margin: 1.25rem 0 0; display: grid; gap: 0.55rem; }
+  ul.clean li { display: grid; grid-template-columns: 1.1rem 1fr; gap: 0.55rem; font-size: 0.92rem; align-items: start; }
+  ul.clean li .b { color: var(--brand); font-weight: 700; line-height: 1.5; }
+  ul.clean li .b.ok { color: var(--success); }
+  ul.clean li .b.no { color: var(--fg-muted); }
+
+  .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+  .split h3 { margin-bottom: 0.5rem; }
+  .split ul.clean { margin-top: 0; }
+
+  /* ── Заметки докладчику ─────────────────────────────────── */
+  details.notes { margin-top: 1.75rem; border-top: 1px dashed var(--border); padding-top: 1rem; }
+  details.notes summary {
+    cursor: pointer; font-size: 0.78rem; font-weight: 600; color: var(--fg-muted);
+    font-family: var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+    list-style: none;
+  }
+  details.notes summary::-webkit-details-marker { display: none; }
+  details.notes summary::before { content: "▸ "; color: var(--brand); }
+  details.notes[open] summary::before { content: "▾ "; }
+  details.notes summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 0.3rem; }
+  details.notes p { font-size: 0.9rem; max-width: 68ch; }
+  details.notes p:first-of-type { margin-top: 0.8rem; }
+
+  .callout {
+    margin-top: 1.5rem; border-left: 3px solid var(--brand); background: var(--brand-soft);
+    padding: 0.9rem 1.1rem; border-radius: 0 var(--r-md) var(--r-md) 0; font-size: 0.92rem;
+  }
+  .callout.warn { border-left-color: var(--warning); background: var(--warning-soft); }
+  .callout p:first-child { margin-top: 0; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  @media print {
+    .rail { display: none; }
+    .shell { display: block; max-width: none; padding: 0; }
+    section { break-inside: avoid; page-break-after: always; border: 0; padding: 1.5rem 0; }
+    details.notes { display: none; }
+  }
+</style>
+</head>
+<body style="margin:0">
+
+<div class="shell">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="mark" aria-hidden="true">Т</span>
+      <span>
+        <span class="rail-name">TU&nbsp;Courses</span>
+        <span class="rail-sub">Университет Ташенева</span>
+      </span>
+    </div>
+    <nav class="rail-nav" aria-label="Разделы презентации">
+      <a href="#s1"><span class="n">01</span><span>Что это</span></a>
+      <a href="#s2"><span class="n">02</span><span>Задача</span></a>
+      <a href="#s3"><span class="n">03</span><span>Объём работы</span></a>
+      <a href="#s4"><span class="n">04</span><span>Полный цикл</span></a>
+      <a href="#s5"><span class="n">05</span><span>Роли и права</span></a>
+      <a href="#s6"><span class="n">06</span><span>Нормы в коде</span></a>
+      <a href="#s7"><span class="n">07</span><span>Семь этапов</span></a>
+      <a href="#s8"><span class="n">08</span><span>Как устроено</span></a>
+      <a href="#s9"><span class="n">09</span><span>Безопасность</span></a>
+      <a href="#s10"><span class="n">10</span><span>Три языка</span></a>
+      <a href="#s11"><span class="n">11</span><span>Чего ещё нет</span></a>
+      <a href="#s12"><span class="n">12</span><span>Перенос к нам</span></a>
+      <a href="#s13"><span class="n">13</span><span>Решения вуза</span></a>
+    </nav>
+  </aside>
+
+  <main class="deck">
+
+    <!-- 01 ─────────────────────────────────────────────── -->
+    <section class="cover" id="s1">
+      <div class="cover-top">
+        <span class="mark cover-mark" aria-hidden="true">Т</span>
+        <span>
+          <span class="rail-name" style="font-size:1.05rem">Tashenev University</span>
+          <span class="rail-sub">Платформа онлайн-обучения</span>
+        </span>
+      </div>
+      <h1>Учебный процесс целиком —<br>от плана до диплома</h1>
+      <p class="lede">
+        Информационная система, которая ведёт обучение по кредитной технологии:
+        рабочий учебный план по ГОСО, индивидуальный план студента, курсы,
+        посещаемость, оценки, практика, итоговая аттестация и диплом
+        с приложением. Реализованы все семь этапов технического задания.
+      </p>
+      <div class="cover-meta">
+        <span><b>Работающий стенд</b>tu-courses-kano6.vercel.app</span>
+        <span><b>Готовность</b>этапы 1—7 из 7</span>
+        <span><b>Языки</b>қазақша · русский · english</span>
+        <span><b>Нормативная база</b>ГОСО № 2 · Типовые правила № 595</span>
+      </div>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Открываю просто: это не «электронный журнал» и не «сайт с лекциями».
+        Это система, которая ведёт весь учебный процесс — от того, как кафедра
+        составила учебный план, до того, как студенту выдали диплом. Всё, что
+        между, тоже внутри: выбор дисциплин, регистрация, занятия, оценки,
+        практика, защита.</p>
+        <p>Дальше я покажу три вещи: что уже работает, чем это отличается от
+        обычной LMS, и что нужно от вуза, чтобы запустить это на реальном
+        контингенте.</p>
+      </details>
+    </section>
+
+    <!-- 02 ─────────────────────────────────────────────── -->
+    <section id="s2">
+      <div class="eyebrow"><span>02 · Задача</span><span class="rule"></span></div>
+      <h2>Требование закона, а не пожелание</h2>
+      <p class="lede">
+        Пункт 61 Типовых правил деятельности организаций высшего образования
+        обязывает вуз иметь информационную систему управления образованием.
+        Дистанционное обучение без такой системы вести нельзя.
+      </p>
+      <p>
+        Отсюда и рамка проекта. Система должна не просто «уметь показывать
+        лекции», а соблюдать нормативы: ГОСО задаёт объём кредитов по циклам
+        и перечень обязательных дисциплин, Типовые правила — продолжительность
+        академического периода, порядок апелляции, условия диплома с отличием
+        и допуска к итоговой аттестации.
+      </p>
+      <div class="callout">
+        <p><strong>Ключевое решение проекта.</strong> Нормы вынесены не в
+        инструкцию для сотрудника, а в проверки внутри системы. Учебный план,
+        не соответствующий ГОСО, невозможно утвердить. Курс с неверным объёмом
+        часов невозможно опубликовать. Студента, не освоившего программу,
+        невозможно допустить к защите.</p>
+      </div>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Здесь важно снять ощущение «нам продают ещё одну платформу». Система
+        нужна не потому, что это модно, а потому что этого требует пункт 61
+        Типовых правил. Проверяющий приходит и спрашивает: где ваша ИСУО.</p>
+        <p>И сразу главное отличие. Обычная система хранит то, что ввёл человек.
+        Наша — проверяет то, что человек вводит, по нормативам. Если методист
+        собрал план, где кредитов по циклу базовых дисциплин меньше нормы,
+        система не даст его утвердить и покажет, чего именно не хватает.
+        Это снимает целый класс ошибок, которые сейчас ловятся вручную и не
+        всегда вовремя.</p>
+      </details>
+    </section>
+
+    <!-- 03 ─────────────────────────────────────────────── -->
+    <section id="s3">
+      <div class="eyebrow"><span>03 · Объём</span><span class="rule"></span></div>
+      <h2>Что сделано в цифрах</h2>
+      <p class="lede">
+        Это не прототип и не демонстрационный макет. Работающая система
+        на реальной базе данных, развёрнутая и проверенная.
+      </p>
+
+      <div class="tiles">
+        <div class="tile"><div class="v">7&nbsp;/&nbsp;7</div><div class="k">этапов ТЗ выполнено</div></div>
+        <div class="tile"><div class="v">92</div><div class="k">таблицы базы данных</div></div>
+        <div class="tile"><div class="v">56</div><div class="k">экранов, каждый на трёх языках</div></div>
+        <div class="tile"><div class="v">9</div><div class="k">ролей с разными правами</div></div>
+        <div class="tile"><div class="v">206</div><div class="k">автоматических тестов, все проходят</div></div>
+        <div class="tile"><div class="v">41&nbsp;000</div><div class="k">строк кода</div></div>
+        <div class="tile"><div class="v">13</div><div class="k">документов сопровождения</div></div>
+        <div class="tile"><div class="v">0</div><div class="k">ошибок и предупреждений в сборке</div></div>
+      </div>
+
+      <p>
+        Пилотное наполнение — реальные учебные материалы: план 6В01601
+        «История» на 240 кредитов (47 позиций плана, 71 дисциплина),
+        курс «Введение в информационные системы» на 3 кредита с 23 элементами
+        содержания, банком из 20 вопросов и двумя тестами.
+      </p>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Цифры нужны, чтобы было понятно: это доведённая работа, а не
+        презентация идеи. Две из них стоит объяснить.</p>
+        <p><strong>206 тестов</strong> — это автоматические проверки правил.
+        Например: «студент с оценкой C не получает диплом с отличием»,
+        «семестр короче 15 недель не сохраняется». Они запускаются при каждом
+        изменении кода. Если кто-то случайно сломает правило, это выяснится
+        сразу, а не на выпуске.</p>
+        <p><strong>92 таблицы</strong> — это масштаб предметной области.
+        Учебный процесс вуза сложнее, чем кажется со стороны: только на
+        итоговую аттестацию приходится пять таблиц.</p>
+      </details>
+    </section>
+
+    <!-- 04 ─────────────────────────────────────────────── -->
+    <section id="s4">
+      <div class="eyebrow"><span>04 · Главное</span><span class="rule"></span></div>
+      <h2>Полный цикл проходит через шесть ролей</h2>
+      <p class="lede">
+        Ни один сотрудник не может пройти цикл в одиночку. Разделение
+        обязанностей заложено в права доступа, а не в приказ.
+      </p>
+
+      <div class="flow">
+        <div class="step"><span class="who">Методист</span><span class="did">Строит рабочий учебный план<em>валидатор ГОСО проверяет объёмы и обязательные дисциплины</em></span></div>
+        <div class="step"><span class="who r">Регистратор</span><span class="did">Утверждает план, открывает окно регистрации<em>границы: например 24—68 кредитов на год</em></span></div>
+        <div class="step"><span class="who">Студент</span><span class="did">Формирует индивидуальный учебный план<em>обязательные — автоматически, выборные — сам</em></span></div>
+        <div class="step"><span class="who">Эдвайзер</span><span class="did">Согласовывает или возвращает с комментарием<em>студент видит причину и правит выбор</em></span></div>
+        <div class="step"><span class="who r">Регистратор</span><span class="did">Фиксирует план — открывается запись на потоки</span></div>
+        <div class="step"><span class="who">Студент</span><span class="did">Записывается на поток<em>нет мест — очередь ожидания с номером</em></span></div>
+        <div class="step"><span class="who">Преподаватель</span><span class="did">Наполняет курс и отправляет на согласование<em>публикация закрыта, пока Σ часов ≠ кредиты × 30</em></span></div>
+        <div class="step"><span class="who">Методист</span><span class="did">Согласовывает содержание</span></div>
+        <div class="step"><span class="who">Преподаватель</span><span class="did">Публикует, ведёт занятия, оценивает<em>посещаемость, рубежные контроли, экзамен</em></span></div>
+        <div class="step"><span class="who r">Регистратор</span><span class="did">Закрывает ведомость<em>после этого оценку не правит никто</em></span></div>
+        <div class="step"><span class="who">Студент</span><span class="did">При несогласии подаёт апелляцию в срок</span></div>
+        <div class="step"><span class="who r">Регистратор</span><span class="did">Решение комиссии, пересчёт итога и GPA</span></div>
+        <div class="step"><span class="who">Администратор</span><span class="did">Видит каждое из этих действий в журнале аудита<em>кто, что и когда изменил</em></span></div>
+      </div>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Это самый важный слайд. Прошу задержаться на нём.</p>
+        <p>Смысл в том, что система не даёт «срезать угол». Преподаватель не
+        опубликует курс, который не посмотрел методист. Администратор — тот, у
+        кого технический доступ ко всему — не может изменить оценку: у него
+        просто нет такого права. Оценку после закрытия ведомости меняет только
+        офис Регистратора и только по решению апелляционной комиссии, и это
+        попадает в журнал.</p>
+        <p>Для руководства это значит: спорную ситуацию всегда можно
+        восстановить. Кто поставил, кто изменил, когда, на каком основании.</p>
+      </details>
+    </section>
+
+    <!-- 05 ─────────────────────────────────────────────── -->
+    <section id="s5">
+      <div class="eyebrow"><span>05 · Доступ</span><span class="rule"></span></div>
+      <h2>Девять ролей, у каждой — своё</h2>
+      <p class="lede">
+        Права атомарные: не «доступ к разделу», а конкретное действие.
+        И второй вопрос — принадлежность: роль «Преподаватель» сама по себе
+        не открывает ни один курс, нужно назначение на дисциплину в периоде.
+      </p>
+
+      <div class="scroll">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>Действие</th>
+              <th>Студ.</th><th>Преп.</th><th>Тьютор</th><th>Эдв.</th>
+              <th>Метод.</th><th>Регистр.</th><th>Админ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="grouprow"><td colspan="8">Курсы</td></tr>
+            <tr><td>Создать и наполнить курс</td><td class="no">·</td><td class="yes">✔</td><td class="yes">✔</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td></tr>
+            <tr><td>Согласовать курс</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="yes">✔</td><td class="no">·</td><td class="no">·</td></tr>
+            <tr><td>Опубликовать курс</td><td class="no">·</td><td class="yes">✔</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td></tr>
+            <tr class="grouprow"><td colspan="8">Оценки</td></tr>
+            <tr><td>Выставить балл</td><td class="no">·</td><td class="yes">✔</td><td class="yes">✔</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td></tr>
+            <tr><td>Утвердить итоговую оценку</td><td class="no">·</td><td class="yes">✔</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td></tr>
+            <tr><td>Изменить после закрытия ведомости</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="yes">✔</td><td class="no">·</td></tr>
+            <tr><td>Видеть чужие оценки</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="yes">✔</td><td class="yes">✔</td></tr>
+            <tr class="grouprow"><td colspan="8">Планы и контингент</td></tr>
+            <tr><td>Править учебный план</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="yes">✔</td><td class="no">·</td><td class="no">·</td></tr>
+            <tr><td>Утвердить учебный план</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="yes">✔</td><td class="no">·</td></tr>
+            <tr><td>Согласовать ИУП студента</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="yes">✔</td><td class="no">·</td><td class="no">·</td><td class="no">·</td></tr>
+            <tr><td>Зафиксировать ИУП</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="yes">✔</td><td class="no">·</td></tr>
+            <tr><td>Управлять группами</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="yes">✔</td><td class="yes">✔</td></tr>
+            <tr class="grouprow"><td colspan="8">Администрирование</td></tr>
+            <tr><td>Учётные записи и роли</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="yes">✔</td></tr>
+            <tr><td>Настройки формулы оценки</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="yes">✔</td></tr>
+            <tr><td>Журнал аудита</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="no">·</td><td class="yes">✔</td></tr>
+            <tr><td class="num" style="text-align:left"><strong>Всего прав у роли</strong></td>
+              <td class="num">6</td><td class="num">11</td><td class="num">9</td><td class="num">6</td><td class="num">6</td><td class="num">20</td><td class="num">19</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:0.83rem;color:var(--fg-muted);margin-top:0.8rem">
+        Показаны 15 прав из 43. Роли «Гость» (0 прав, только публичные страницы)
+        и «Проктор» (наблюдение, интерфейс — за рамками этапов) опущены.
+        Полная матрица — в <code>docs/ROLES.md</code>.
+      </p>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Обратите внимание на две строки. «Утвердить итоговую оценку» —
+        только у ведущего преподавателя, не у ассистента: ассистент работает,
+        но подпись под результатом ставит не он. «Изменить после закрытия
+        ведомости» — только у офиса Регистратора, и этого права нет даже
+        у администратора системы.</p>
+        <p>Это не техническая мелочь. Это ответ на вопрос «а может ли
+        айтишник поправить оценку». Не может.</p>
+      </details>
+    </section>
+
+    <!-- 06 ─────────────────────────────────────────────── -->
+    <section id="s6">
+      <div class="eyebrow"><span>06 · Отличие</span><span class="rule"></span></div>
+      <h2>Что система не даст сделать</h2>
+      <p class="lede">
+        Обычная система хранит то, что ввёл человек. Эта — проверяет ввод
+        по нормативам и отказывает с объяснением причины.
+      </p>
+
+      <div class="rules">
+        <div class="rule-card">
+          <span class="tag">ГОСО</span>
+          <h3>Утвердить план с нарушением норматива</h3>
+          <p>Валидатор считает кредиты по циклам ООД, БД, ПД, проверяет
+          обязательные дисциплины, объём практик и итоговой аттестации.
+          Каждое нарушение — с номером правила и величиной расхождения.</p>
+        </div>
+        <div class="rule-card">
+          <span class="tag">1 кредит = 30 часов</span>
+          <h3>Опубликовать курс с неверным объёмом</h3>
+          <p>Сумма плановых академических часов всех элементов курса должна
+          равняться кредиты × 30. Пока не равна — кнопка публикации неактивна,
+          и показано, на сколько часов расхождение.</p>
+        </div>
+        <div class="rule-card">
+          <span class="tag">Типовые правила</span>
+          <h3>Открыть семестр короче 15 недель</h3>
+          <p>Семестр — не менее 15 недель, триместр — 10, четверть — 7.
+          Календарь с нарушением не сохраняется.</p>
+        </div>
+        <div class="rule-card">
+          <span class="tag">Пункт 50</span>
+          <h3>Выдать диплом с отличием не по правилам</h3>
+          <p>Четыре условия одновременно: GPA не ниже 3,5; все оценки не ниже
+          C+; итоговая аттестация на A или A−; не было пересдач. Система
+          показывает, какое именно условие не выполнено.</p>
+        </div>
+        <div class="rule-card">
+          <span class="tag">Допуск к аттестации</span>
+          <h3>Допустить к защите неготового</h3>
+          <p>Освоенные кредиты считаются по закрытым ведомостям, оценённым
+          практикам и утверждённым перезачётам — не по отметке в карточке.
+          Незавершённая практика блокирует допуск.</p>
+        </div>
+        <div class="rule-card">
+          <span class="tag">Пересдача</span>
+          <h3>Пересдать защиту ради лучшей оценки</h3>
+          <p>Повторная сдача положительной оценки не допускается. При
+          неудовлетворительной — обучающийся отчисляется, повторная защита
+          только в следующий период аттестации.</p>
+        </div>
+      </div>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Это слайд, ради которого стоило делать проект именно так.</p>
+        <p>Возьмите второй пункт. Сегодня соответствие часов кредитам проверяет
+        человек — глазами, по таблице, перед проверкой. Здесь это считается
+        постоянно, и преподаватель видит расхождение в тот момент, когда
+        он его создал, а не за неделю до аккредитации.</p>
+        <p>И важно: правила не «зашиты намертво». Коэффициенты формулы итоговой
+        оценки, порог допуска, число рубежных контролей — настройки, которые
+        правит администратор по решению учёного совета, без обращения
+        к разработчику. Наследование трёхуровневое: университет → дисциплина →
+        конкретный курс.</p>
+      </details>
+    </section>
+
+    <!-- 07 ─────────────────────────────────────────────── -->
+    <section id="s7">
+      <div class="eyebrow"><span>07 · Ход работы</span><span class="rule"></span></div>
+      <h2>Семь этапов</h2>
+
+      <div class="stages">
+        <div class="stage"><span class="no-n">1</span><span class="mods">P·S·T·A·L</span><span class="what">Ядро: роли и права, справочники, конструктор курса, тесты шести типов, задания с загрузкой файлов, журнал оценок, GPA, ведомости, транскрипт, журнал аудита</span></div>
+        <div class="stage"><span class="no-n">2</span><span class="mods">CUR</span><span class="what">Учебные планы: профили ГОСО, конструктор плана, валидатор, версии, выгрузка в Excel, каталог элективов</span></div>
+        <div class="stage"><span class="no-n">3</span><span class="mods">GRP·ACAD·IEP</span><span class="what">Группы, академический календарь, окна регистрации, индивидуальный учебный план, согласование эдвайзером, очередь ожидания</span></div>
+        <div class="stage"><span class="no-n">4</span><span class="mods">LRN</span><span class="what">Журнал посещаемости, группа риска, сводка по обучающемуся, реализация дисциплины по группам и языкам</span></div>
+        <div class="stage"><span class="no-n">5</span><span class="mods">ASM</span><span class="what">Апелляции, перезачёт кредитов, снимки GPA при закрытии периода, перевод на курс, диплом с отличием</span></div>
+        <div class="stage"><span class="no-n">6</span><span class="mods">COM</span><span class="what">Чаты группы и дисциплины с автоматическим составом, адресные объявления, подтверждение прочтения, уведомления</span></div>
+        <div class="stage"><span class="no-n">7</span><span class="mods">PRC·FIN</span><span class="what">Базы практики, распределение, дневник и отчёт, аттестационные комиссии, дипломные работы, допуск, протоколы защиты, дипломы</span></div>
+      </div>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Каждый этап делался по одной схеме: сначала правило отдельной
+        проверяемой функцией с тестами, потом хранение, потом экраны, потом
+        проверка на живых данных в браузере, потом документ.</p>
+        <p>Поэтому по каждому этапу есть свой документ в папке
+        <code>docs</code>, а не только код. Методист может прочитать, почему
+        валидатор считает именно так, не открывая программу.</p>
+      </details>
+    </section>
+
+    <!-- 08 ─────────────────────────────────────────────── -->
+    <section id="s8">
+      <div class="eyebrow"><span>08 · Технически</span><span class="rule"></span></div>
+      <h2>Как это устроено</h2>
+      <p class="lede">
+        Обычный современный веб-стек без экзотики. Всё, что здесь есть,
+        поддерживается на рынке и не привязывает вуз к одному подрядчику.
+      </p>
+
+      <div class="arch">
+        <div class="layer">
+          <div class="layer-head"><b>Пользователь</b><span>браузер или телефон, установка не нужна</span></div>
+          <div class="parts"><span class="chip">Chrome</span><span class="chip">Safari</span><span class="chip">Firefox</span><span class="chip">адаптив от 360 px</span></div>
+        </div>
+        <div class="arrow" aria-hidden="true">↓ HTTPS</div>
+        <div class="layer accent">
+          <div class="layer-head"><b>Приложение</b><span>отрисовка на сервере, бизнес-логика, проверка прав</span></div>
+          <div class="parts"><span class="chip">Next.js 15</span><span class="chip">React 19</span><span class="chip">TypeScript</span><span class="chip">Auth.js · JWT</span><span class="chip">next-intl</span><span class="chip">Tailwind</span></div>
+        </div>
+        <div class="arrow" aria-hidden="true">↓</div>
+        <div class="layer">
+          <div class="layer-head"><b>Данные</b><span>92 таблицы, миграции под контролем версий</span></div>
+          <div class="parts"><span class="chip">PostgreSQL 16</span><span class="chip">Prisma ORM</span><span class="chip">RLS на всех таблицах</span><span class="chip">файлы в приватных бакетах</span></div>
+        </div>
+        <div class="arrow" aria-hidden="true">↓</div>
+        <div class="layer">
+          <div class="layer-head"><b>Внешние системы</b><span>обмен изолирован в один модуль</span></div>
+          <div class="parts"><span class="chip">Platonus — адаптер готов</span><span class="chip">очередь с повторами</span><span class="chip">выгрузка Excel</span></div>
+        </div>
+      </div>
+
+      <div class="split">
+        <div>
+          <h3>Почему это важно вузу</h3>
+          <ul class="clean">
+            <li><span class="b ok">→</span><span>Ничего не устанавливается на компьютеры преподавателей и студентов — только браузер.</span></li>
+            <li><span class="b ok">→</span><span>Схема базы данных описана в одном файле и версионируется. Переезд на другой сервер — восстановление из этого файла.</span></li>
+            <li><span class="b ok">→</span><span>Интеграция с Platonus вынесена в один изолированный модуль. Когда вендор даст доступ к API, правится один файл.</span></li>
+            <li><span class="b ok">→</span><span>Открытый стек: PostgreSQL, Node.js. Специалисты на рынке есть, лицензии не нужны.</span></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Как проверяется качество</h3>
+          <ul class="clean">
+            <li><span class="b">→</span><span>206 автоматических тестов правил — запускаются при каждом изменении.</span></li>
+            <li><span class="b">→</span><span>Проверка типов: несовпадение данных ловится до запуска, а не у пользователя.</span></li>
+            <li><span class="b">→</span><span>Сборка без единого предупреждения.</span></li>
+            <li><span class="b">→</span><span>Каждый сценарий проверен на живых данных в браузере, а не только в тестах.</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Для тех, кто разбирается: Next.js 15 с отрисовкой на сервере, вся
+        бизнес-логика и все проверки прав — на сервере, браузер не решает
+        ничего. Prisma поверх PostgreSQL 16, миграции под контролем версий.
+        Аутентификация Auth.js, пароли bcrypt.</p>
+        <p>Для тех, кому это ни о чём не говорит: это тот же набор технологий,
+        на котором сделаны крупные коммерческие сервисы. Ничего самописного
+        в фундаменте нет, поэтому систему сможет сопровождать любой грамотный
+        разработчик, а не только тот, кто её написал.</p>
+        <p>Отдельно про Platonus: адаптер написан и работает, нужен доступ
+        к API от вендора. Это единственное, что мы не можем сделать сами.</p>
+      </details>
+    </section>
+
+    <!-- 09 ─────────────────────────────────────────────── -->
+    <section id="s9">
+      <div class="eyebrow"><span>09 · Безопасность</span><span class="rule"></span></div>
+      <h2>Персональные данные и защита</h2>
+
+      <div class="split">
+        <div>
+          <h3>Что сделано</h3>
+          <ul class="clean">
+            <li><span class="b ok">✔</span><span>Пароли хранятся необратимым хешем bcrypt — восстановить исходный пароль нельзя ни администратору, ни разработчику.</span></li>
+            <li><span class="b ok">✔</span><span>ИИН шифруется в базе, в интерфейсе показывается маской. Полный ИИН видят только офис Регистратора и администратор.</span></li>
+            <li><span class="b ok">✔</span><span>Row Level Security включён на всех таблицах: даже с публичным ключом база не читается.</span></li>
+            <li><span class="b ok">✔</span><span>Файлы работ лежат в приватных хранилищах, ссылка выдаётся временная и адресная.</span></li>
+            <li><span class="b ok">✔</span><span>Согласие на обработку персональных данных запрашивается при первом входе и без него система не пускает.</span></li>
+            <li><span class="b ok">✔</span><span>Журнал аудита фиксирует изменение оценок, решения по апелляциям, выдачу дипломов.</span></li>
+            <li><span class="b ok">✔</span><span>Заголовки безопасности по разделу 6.3 ТЗ: HSTS, CSP, защита от встраивания в чужой сайт.</span></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Что требует решения вуза</h3>
+          <div class="callout warn">
+            <p><strong>Размещение данных.</strong> Персональные данные граждан
+            Республики Казахстан подлежат хранению на территории РК. Сейчас
+            стенд работает на зарубежной инфраструктуре — это допустимо для
+            пилота на тестовых данных, но не для работы с реальным
+            контингентом.</p>
+            <p>Решение — перенос на сервер университета или казахстанский
+            хостинг. Порядок переноса подготовлен, см. следующий раздел.</p>
+          </div>
+        </div>
+      </div>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Про ограничение говорю прямо и сам, не дожидаясь вопроса. Это
+        не недоработка, это осознанное состояние пилота: сначала показать
+        работающую систему, потом переносить.</p>
+        <p>Формулировка для протокола: «на текущей площадке допустима опытная
+        эксплуатация на обезличенных или тестовых данных; для промышленной
+        эксплуатации требуется перенос базы данных на инфраструктуру
+        в Республике Казахстан».</p>
+      </details>
+    </section>
+
+    <!-- 10 ─────────────────────────────────────────────── -->
+    <section id="s10">
+      <div class="eyebrow"><span>10 · Доступность</span><span class="rule"></span></div>
+      <h2>Три языка и работа с телефона</h2>
+
+      <div class="split">
+        <div>
+          <h3>Языки</h3>
+          <p style="margin-top:0">Интерфейс полностью переведён на казахский,
+          русский и английский. Язык выбирается в шапке и запоминается
+          в профиле. По умолчанию открывается казахская версия.</p>
+          <p>Шрифты проверены на полноту казахской кириллицы:
+          <strong style="font-family:var(--mono)">ә ғ қ ң ө ұ ү һ і</strong>
+          отображаются во всех трёх темах и на всех платформах — это
+          требование раздела ТЗ, которое обычно упускают.</p>
+        </div>
+        <div>
+          <h3>Интерфейс</h3>
+          <ul class="clean">
+            <li><span class="b">→</span><span>Работает с телефона: адаптив от 360 px, таблицы прокручиваются, а не ломают страницу.</span></li>
+            <li><span class="b">→</span><span>Светлая и тёмная темы; контраст текста проходит норму AA.</span></li>
+            <li><span class="b">→</span><span>Фирменная палитра выведена из логотипа университета: красный знака осветлён ровно настолько, чтобы текст на нём читался.</span></li>
+            <li><span class="b">→</span><span>Печать транскрипта и ведомостей — отдельные стили, документ выходит без меню и кнопок.</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Про казахскую кириллицу стоит сказать вслух: это частая проблема
+        готовых платформ, где ә и ғ превращаются в квадратики. Здесь шрифтовые
+        стеки подобраны так, чтобы этого не было, и это проверено.</p>
+        <p>Про цвет — короткая, но выигрышная деталь: палитра не выбрана
+        дизайнером «на глаз», а взята пипеткой из официального файла логотипа
+        и затемнена ровно до значения, при котором белый текст на красной
+        кнопке проходит норму доступности.</p>
+      </details>
+    </section>
+
+    <!-- 11 ─────────────────────────────────────────────── -->
+    <section id="s11">
+      <div class="eyebrow"><span>11 · Честно</span><span class="rule"></span></div>
+      <h2>Чего в системе пока нет</h2>
+      <p class="lede">
+        Перенесено за рамки этапов 1—7 по согласованию. Ни один из пунктов
+        не мешает начать работу.
+      </p>
+
+      <div class="split">
+        <div>
+          <h3>Требует закупки или внешнего сервиса</h3>
+          <ul class="clean">
+            <li><span class="b no">·</span><span><strong>Прокторинг</strong> — роль в системе заведена, интерфейс не делался.</span></li>
+            <li><span class="b no">·</span><span><strong>Антиплагиат</strong> — поле процента оригинальности есть, значение вносится по результату внешней проверки.</span></li>
+            <li><span class="b no">·</span><span><strong>Вебинары</strong> — нужен сервис видеосвязи.</span></li>
+            <li><span class="b no">·</span><span><strong>Почта и push-уведомления</strong> — в приложении работают, для внешних каналов нужен почтовый сервис.</span></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Требует решения или доступа</h3>
+          <ul class="clean">
+            <li><span class="b no">·</span><span><strong>Обмен с Platonus</strong> — адаптер написан, нужен доступ к API от вендора.</span></li>
+            <li><span class="b no">·</span><span><strong>Живое обновление чатов</strong> — сообщения приходят при обновлении страницы; постоянное соединение требует отдельного сервера.</span></li>
+            <li><span class="b no">·</span><span><strong>Мобильное приложение</strong> — сайт работает с телефона, отдельного приложения нет.</span></li>
+            <li><span class="b no">·</span><span><strong>SCORM, LTI, сертификаты, форумы</strong> — следующий этап.</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Этот слайд обязателен. Если не сказать самому, спросят — и тогда это
+        будет выглядеть как попытка скрыть.</p>
+        <p>Главное, что нужно донести: ничего из списка не блокирует запуск.
+        Учебный процесс можно вести полностью. Прокторинг и антиплагиат — это
+        надстройки над экзаменом и дипломной работой, а не условие их
+        проведения.</p>
+      </details>
+    </section>
+
+    <!-- 12 ─────────────────────────────────────────────── -->
+    <section id="s12">
+      <div class="eyebrow"><span>12 · Перенос</span><span class="rule"></span></div>
+      <h2>Переезд на инфраструктуру университета</h2>
+      <p class="lede">
+        Система изначально спроектирована переносимой: ни одной зависимости
+        от конкретного облака в бизнес-логике нет.
+      </p>
+
+      <div class="stages">
+        <div class="stage"><span class="no-n">1</span><span class="mods">1 день</span><span class="what">Подготовка сервера: 4 ядра, 8 ГБ памяти, 100 ГБ диска, Ubuntu LTS, доменное имя и сертификат</span></div>
+        <div class="stage"><span class="no-n">2</span><span class="mods">1 день</span><span class="what">PostgreSQL 16 на сервере вуза, схема разворачивается из файла миграций одной командой</span></div>
+        <div class="stage"><span class="no-n">3</span><span class="mods">2 дня</span><span class="what">Хранилище файлов: MinIO на том же сервере, плюс перевод одного модуля приложения на протокол S3 — вся работа с файлами изолирована в одном файле</span></div>
+        <div class="stage"><span class="no-n">4</span><span class="mods">1 день</span><span class="what">Приложение в контейнере, обратный прокси, HTTPS, автозапуск</span></div>
+        <div class="stage"><span class="no-n">5</span><span class="mods">1 день</span><span class="what">Перенос данных: выгрузка базы и файлов, загрузка на новую площадку, сверка контрольных сумм</span></div>
+        <div class="stage"><span class="no-n">6</span><span class="mods">1 день</span><span class="what">Резервное копирование по расписанию и проверка восстановления — критерий приёмки № 12</span></div>
+        <div class="stage"><span class="no-n">7</span><span class="mods">1—2 дня</span><span class="what">Приёмочный прогон всеми ролями на новой площадке, нагрузочная проверка, переключение домена</span></div>
+      </div>
+
+      <div class="callout">
+        <p><strong>Оценка: 8—9 рабочих дней</strong> при готовом сервере
+        и выделенном системном администраторе вуза. Пошаговый порядок с
+        командами — в документе <code>docs/MIGRATION.md</code>.</p>
+      </div>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Ключевая мысль: переносимость закладывалась с самого начала.
+        Приложение обращается к базе по стандартному протоколу PostgreSQL,
+        к файлам — через отдельный модуль. База разворачивается на сервере вуза
+        сменой одной строки подключения. Хранилище — либо Supabase на своём
+        сервере, тогда не меняется вообще ничего, либо MinIO, и тогда правится
+        один файл приложения: это день работы, зато служба проще
+        в сопровождении.</p>
+        <p>Что нужно от университета: сервер (можно виртуальный), доменное имя
+        третьего уровня вида lms.tashenev.edu.kz, и системный администратор
+        на неделю.</p>
+      </details>
+    </section>
+
+    <!-- 13 ─────────────────────────────────────────────── -->
+    <section id="s13">
+      <div class="eyebrow"><span>13 · Решения</span><span class="rule"></span></div>
+      <h2>Что нужно от руководства</h2>
+      <p class="lede">
+        Разработка доведена до состояния, когда дальше нужны не строчки кода,
+        а управленческие решения.
+      </p>
+
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Вопрос</th><th>Кто решает</th><th>Почему без этого нельзя</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Площадка размещения</strong></td><td>Ректорат, служба ИТ</td><td>Персональные данные граждан РК хранятся в РК. Без решения — только пилот на тестовых данных</td></tr>
+            <tr><td><strong>Доступ к API Platonus</strong></td><td>Ректорат → вендор</td><td>Адаптер готов, обмен не включить без доступа</td></tr>
+            <tr><td><strong>Пилотная программа и группа</strong></td><td>Учебный департамент</td><td>Нужен один реальный поток, чтобы пройти цикл от плана до ведомости</td></tr>
+            <tr><td><strong>Коэффициенты итоговой оценки</strong></td><td>Учёный совет</td><td>Сейчас стоят типовые значения; правятся в настройках без разработчика</td></tr>
+            <tr><td><strong>Порядок апелляции: срок подачи</strong></td><td>Учебный департамент</td><td>Число дней после закрытия ведомости — настройка системы</td></tr>
+            <tr><td><strong>Ответственные по ролям</strong></td><td>Деканаты, кафедры</td><td>Нужны конкретные люди на роли методиста, эдвайзера, офиса Регистратора</td></tr>
+            <tr><td><strong>Обучение сотрудников</strong></td><td>Учебный департамент</td><td>Руководства преподавателя и обучающегося готовы, нужен график занятий</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <p><strong>Предложение.</strong> Запустить пилот на одной
+        образовательной программе в ближайшем академическом периоде,
+        параллельно с переносом на инфраструктуру университета. Это даёт
+        реальную обратную связь от преподавателей до того, как система
+        станет обязательной для всех.</p>
+      </div>
+
+      <details class="notes">
+        <summary>Что сказать</summary>
+        <p>Заканчиваю не словами «спасибо за внимание», а конкретным
+        предложением, по которому можно принять решение прямо на совещании.</p>
+        <p>Пилот на одной программе — это самое дешёвое решение из возможных.
+        Он не требует ничего останавливать, не мешает текущей работе и даёт
+        ответ на главный вопрос: удобно ли преподавателям. Ответ на него
+        нельзя получить в кабинете.</p>
+        <p>Если спросят про сроки промышленного запуска — честный ответ:
+        после переноса (неделя) и пилотного семестра. То есть следующий
+        учебный год.</p>
+      </details>
+    </section>
+
+  </main>
+</div>
+
+</body>
+</html>
