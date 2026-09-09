@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/prisma';
-import { requireCourseTeacher } from '@/server/guards';
+import { requireCourseTeacher, requirePermission } from '@/server/guards';
 import {
   checkCourseHours,
   publishCourse as publishCourseService,
@@ -13,7 +13,7 @@ import {
   reorderModules as reorderModulesService,
   copyCourseContent,
 } from '@/server/courses';
-import { parseVideoUrl } from '@/lib/utils';
+import { parseVideoUrl, slugify } from '@/lib/utils';
 import type { HoursValidationResult } from '@/domain/hours';
 
 /**
@@ -340,4 +340,96 @@ export async function createAnnouncement(input: {
 
   revalidatePath(`/teach/courses/${input.courseId}`);
   return announcement.id;
+}
+
+// ── Создание собственного курса преподавателем (F-T-01) ─────────────────────
+
+const newCourseSchema = z.object({
+  disciplineId: z.string().trim().min(1, 'Выберите дисциплину.'),
+  periodId: z.string().trim().min(1, 'Выберите академический период.'),
+  streamName: z.string().trim().max(50).optional(),
+});
+
+/**
+ * Преподаватель заводит реализацию дисциплины сам, не дожидаясь офиса
+ * Регистратора.
+ *
+ * Контроль при этом не теряется: курс создаётся черновиком, публикация
+ * по-прежнему требует согласования методистом, а запись обучающихся идёт
+ * через ИУП и офис Регистратора. Самостоятельным остаётся только наполнение.
+ *
+ * На дисциплину в периоде заводится один курс. Второй нужен лишь тогда,
+ * когда дисциплину ведут параллельными потоками, — для этого указывается
+ * название потока.
+ */
+export async function createOwnCourse(
+  input: z.input<typeof newCourseSchema>
+): Promise<{ ok: true; data: { id: string; existed: boolean } } | { ok: false; error: string }> {
+  const user = await requirePermission('course:create');
+  if (!user.teacherProfileId) {
+    return { ok: false, error: 'У учётной записи нет профиля преподавателя.' };
+  }
+
+  const parsed = newCourseSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? 'Проверьте поля.' };
+  }
+  const { disciplineId, periodId } = parsed.data;
+  const streamName = parsed.data.streamName?.trim() || null;
+
+  const discipline = await prisma.discipline.findUnique({
+    where: { id: disciplineId },
+    select: { code: true, nameRu: true, isActive: true },
+  });
+  if (!discipline) return { ok: false, error: 'Дисциплина не найдена.' };
+  if (!discipline.isActive) {
+    return { ok: false, error: 'Дисциплина выведена из справочника.' };
+  }
+
+  const period = await prisma.academicPeriod.findUnique({
+    where: { id: periodId },
+    select: { name: true, academicYear: { select: { name: true } } },
+  });
+  if (!period) return { ok: false, error: 'Академический период не найден.' };
+
+  // Составной уникальный ключ курса включает streamName, а в PostgreSQL два
+  // NULL считаются различными — без явной проверки на дисциплину без потока
+  // завелось бы сколько угодно курсов
+  const existing = await prisma.course.findFirst({
+    where: { disciplineId, periodId, streamName },
+    select: {
+      id: true,
+      teachers: { where: { teacherId: user.teacherProfileId }, select: { id: true } },
+    },
+  });
+  if (existing) {
+    if (existing.teachers.length > 0) {
+      return { ok: true, data: { id: existing.id, existed: true } };
+    }
+    return {
+      ok: false,
+      error:
+        `«${discipline.nameRu}» в периоде «${period.name}» уже ведёт другой преподаватель. ` +
+        'Если дисциплина идёт параллельными потоками, укажите название потока.',
+    };
+  }
+
+  const slug = slugify(
+    `${discipline.code} ${discipline.nameRu} ${period.academicYear.name} ${period.name} ${streamName ?? ''}`
+  );
+
+  const course = await prisma.course.create({
+    data: {
+      disciplineId,
+      periodId,
+      streamName,
+      slug: `${slug}-${Date.now().toString(36)}`,
+      teachers: { create: { teacherId: user.teacherProfileId, isLead: true } },
+      questionBank: { create: {} },
+    },
+    select: { id: true },
+  });
+
+  revalidatePath('/[locale]/teach', 'page');
+  return { ok: true, data: { id: course.id, existed: false } };
 }

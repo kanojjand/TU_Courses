@@ -2,13 +2,15 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
-import { LogOut, User as UserIcon } from 'lucide-react';
+import { Info, LifeBuoy, LogOut, User as UserIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { ROLE_LABELS, type SessionUser, type RoleCode } from '@/lib/rbac';
 import { initials } from '@/lib/utils';
 
 export function UserMenu({ user }: { user: SessionUser }) {
   const [open, setOpen] = useState(false);
+  const t = useTranslations('nav');
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,6 +65,23 @@ export function UserMenu({ user }: { user: SessionUser }) {
           >
             <UserIcon size={15} aria-hidden /> Профиль
           </Link>
+          <Link
+            href="/about"
+            role="menuitem"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted"
+            onClick={() => setOpen(false)}
+          >
+            <Info size={15} aria-hidden /> {t('about')}
+          </Link>
+          <Link
+            href="/support"
+            role="menuitem"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted"
+            onClick={() => setOpen(false)}
+          >
+            <LifeBuoy size={15} aria-hidden /> {t('support')}
+          </Link>
+          <div className="my-1 border-t border-border" role="separator" />
           <button
             type="button"
             role="menuitem"

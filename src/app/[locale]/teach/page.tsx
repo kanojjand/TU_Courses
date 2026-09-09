@@ -4,12 +4,13 @@ import { Link } from '@/i18n/routing';
 import { prisma, dec } from '@/lib/prisma';
 import { pickLocalized } from '@/i18n/request';
 import { requireUser } from '@/server/guards';
-import { hasRole } from '@/lib/rbac';
+import { can, hasRole } from '@/lib/rbac';
 import { Card, CardBody } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/ui/alert';
 import { HOURS_PER_CREDIT } from '@/domain/constants';
+import { NewCourseForm } from '@/components/teacher/new-course-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,24 @@ export default async function TeachPage({ params }: { params: Promise<{ locale: 
     orderBy: { period: { startDate: 'desc' } },
   });
 
+  // Справочники для самостоятельного заведения курса (F-T-01). Периоды —
+  // текущего и будущих учебных лет: заводить курс в закрытом году незачем
+  const canCreate = can(user, 'course:create') && Boolean(user.teacherProfileId);
+  const disciplines = canCreate
+    ? await prisma.discipline.findMany({
+        where: { isActive: true },
+        select: { id: true, code: true, nameKk: true, nameRu: true, nameEn: true, credits: true },
+        orderBy: { code: 'asc' },
+      })
+    : [];
+  const periods = canCreate
+    ? await prisma.academicPeriod.findMany({
+        where: { endDate: { gte: new Date() } },
+        select: { id: true, name: true, academicYear: { select: { name: true } } },
+        orderBy: [{ startDate: 'asc' }],
+      })
+    : [];
+
   const byPeriod = new Map<string, typeof courses>();
   for (const c of courses) {
     const key = `${c.period.academicYear.name} · ${c.period.name}`;
@@ -64,6 +83,20 @@ export default async function TeachPage({ params }: { params: Promise<{ locale: 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-2xl font-bold">{t('myCourses')}</h1>
+
+      {canCreate && (
+        <NewCourseForm
+          disciplines={disciplines.map((d) => ({
+            id: d.id,
+            label: `${d.code} · ${pickLocalized(d, 'name', locale)} · ${d.credits} кр.`,
+            credits: d.credits,
+          }))}
+          periods={periods.map((p) => ({
+            id: p.id,
+            label: `${p.academicYear.name} · ${p.name}`,
+          }))}
+        />
+      )}
 
       {courses.length === 0 ? (
         <EmptyState

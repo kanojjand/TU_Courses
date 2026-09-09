@@ -8,9 +8,9 @@ import { prisma } from '@/lib/prisma';
 import { pickLocalized } from '@/i18n/request';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { HOURS_PER_CREDIT } from '@/domain/constants';
+import { CourseCta } from '@/components/courses/course-cta';
 
 export const revalidate = 600;
 
@@ -79,7 +79,6 @@ export default async function CoursePublicPage({
   setRequestLocale(locale);
 
   const t = await getTranslations('catalog');
-  const tc = await getTranslations('common');
   const course = await loadCourse(slug);
   if (!course) notFound();
 
@@ -206,9 +205,7 @@ export default async function CoursePublicPage({
                   <dd className="font-medium">{d.component}</dd>
                 </div>
               </dl>
-              <Link href="/login" className="block pt-2">
-                <Button className="w-full">{tc('login')}</Button>
-              </Link>
+              <CourseCta />
             </CardBody>
           </Card>
         </aside>
