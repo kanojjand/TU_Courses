@@ -86,6 +86,25 @@ const strings = {
     advisees: ['Қамқорлықтағылар', 'Подопечные', 'Advisees'],
     teach: ['Менің курстарым', 'Мои курсы', 'My courses'],
     admin: ['Әкімшілік', 'Администрирование', 'Administration'],
+    electives: ['Элективті пәндер каталогы', 'Каталог элективных дисциплин', 'Elective course catalogue'],
+    iep: ['Менің ЖОЖ', 'Мой ИУП', 'My study plan'],
+    chats: ['Чаттар', 'Чаты', 'Chats'],
+    practice: ['Практика', 'Практика', 'Practice'],
+
+    // Короткие подписи для нижней панели на телефоне и верхнего меню:
+    // полные названия разделов в пять вкладок по 75 px не помещаются
+    tabCourses: ['Курстар', 'Курсы', 'Courses'],
+    tabGrades: ['Бағалар', 'Оценки', 'Grades'],
+    tabCatalog: ['Каталог', 'Каталог', 'Catalog'],
+    tabManage: ['Басқару', 'Управление', 'Manage'],
+    electivesShort: ['Элективтер', 'Элективы', 'Electives'],
+    supportShort: ['Қолдау', 'Поддержка', 'Support'],
+    more: ['Тағы', 'Ещё', 'More'],
+    menu: ['Мәзір', 'Меню', 'Menu'],
+    profile: ['Профиль', 'Профиль', 'Profile'],
+    logout: ['Шығу', 'Выйти', 'Log out'],
+    language: ['Тіл', 'Язык', 'Language'],
+    theme: ['Тақырып', 'Тема оформления', 'Theme'],
   },
 
   home: {
@@ -209,6 +228,10 @@ const strings = {
   },
 
   student: {
+    continueTitle: ['Оқуды жалғастыру', 'Продолжить обучение', 'Continue learning'],
+    continueNext: ['Келесі сабақ', 'Следующее занятие', 'Next up'],
+    continueButton: ['Жалғастыру', 'Продолжить', 'Continue'],
+    allDone: ['Барлық сабақтар өтілді', 'Все занятия пройдены', 'All lessons completed'],
     currentCourses: ['Ағымдағы кезең пәндері', 'Дисциплины текущего периода', 'Current period courses'],
     upcomingDeadlines: ['Жақын мерзімдер', 'Ближайшие дедлайны', 'Upcoming deadlines'],
     overallProgress: ['Жалпы үлгерім', 'Общий прогресс', 'Overall progress'],
@@ -325,6 +348,13 @@ const strings = {
     periods: ['Академиялық кезеңдер', 'Академические периоды', 'Academic periods'],
     enrollments: ['Тіркеу', 'Регистрация на курсы', 'Enrollments'],
     courses: ['Курстарды келісу', 'Согласование курсов', 'Course review'],
+    curricula: ['Оқу жоспарлары', 'Учебные планы', 'Curricula'],
+    groups: ['Академиялық топтар', 'Академические группы', 'Study groups'],
+    ieps: ['Білім алушылардың ЖОЖ', 'ИУП обучающихся', 'Individual study plans'],
+    appeals: ['Апелляциялар және қайта есептеу', 'Апелляции и перезачёт', 'Appeals and credit transfer'],
+    announcements: ['Хабарландырулар', 'Объявления', 'Announcements'],
+    practice: ['Кәсіби практика', 'Профессиональная практика', 'Professional practice'],
+    attestation: ['Қорытынды аттестаттау', 'Итоговая аттестация', 'Final attestation'],
     gradesheets: ['Ведомостьтер', 'Ведомости', 'Grade sheets'],
     reports: ['Есептер', 'Отчёты', 'Reports'],
     integrations: ['Интеграция', 'Интеграции', 'Integrations'],

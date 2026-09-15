@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { CalendarClock, GraduationCap } from 'lucide-react';
+import { ArrowRight, CalendarClock, CheckCircle2, GraduationCap, TrendingUp } from 'lucide-react';
 
 import { Link } from '@/i18n/routing';
 import { prisma, dec } from '@/lib/prisma';
@@ -10,6 +10,7 @@ import { hasRole, homeRouteFor } from '@/lib/rbac';
 import { summarizeProgress } from '@/domain/activity';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/alert';
 import { NotificationList } from '@/components/student/notification-list';
@@ -100,11 +101,15 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
   // поэтому в только что наполненном преподавателем курсе показывала бы «0 из 0».
   const courseModules = await prisma.module.findMany({
     where: { courseId: { in: shown.map((e) => e.courseId) }, isPublished: true },
+    orderBy: { orderIndex: 'asc' },
     select: {
       courseId: true,
       items: {
         where: { isPublished: true },
+        orderBy: { orderIndex: 'asc' },
         select: {
+          id: true,
+          title: true,
           plannedAcademicHours: true,
           completions: { where: { studentId }, select: { earnedHours: true } },
         },
@@ -134,49 +139,107 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
   const earnedHours = shown.reduce((s, e) => s + (summaryByCourse.get(e.courseId)?.earnedHours ?? 0), 0);
   const overall = totalHours > 0 ? (earnedHours / totalHours) * 100 : 0;
 
+  // Главное действие на первом экране: куда идти прямо сейчас. Берётся курс,
+  // который уже начат (наибольший прогресс меньше 100 %), а если начатых нет —
+  // первый незавершённый. Внутри него — первое непройденное занятие по порядку.
+  const unfinished = shown
+    .map((e) => ({ enrollment: e, summary: summaryByCourse.get(e.courseId) }))
+    .filter((c) => c.summary && c.summary.totalItems > 0 && c.summary.percent < 100)
+    .sort((a, b) => (b.summary?.percent ?? 0) - (a.summary?.percent ?? 0));
+
+  const nextStep = unfinished
+    .map(({ enrollment, summary }) => {
+      const item = courseModules
+        .filter((m) => m.courseId === enrollment.courseId)
+        .flatMap((m) => m.items)
+        .find((i) => i.completions.length === 0);
+      return item && summary ? { enrollment, summary, item } : null;
+    })
+    .find((step) => step !== null);
+
+  const allDone = shown.length > 0 && !nextStep;
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <h1 className="text-2xl font-bold">{user.name}</h1>
+    <div className="mx-auto max-w-7xl px-4 py-5 sm:py-8">
+      <h1 className="text-xl font-bold sm:text-2xl">{user.name}</h1>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardBody>
-            <p className="text-xs text-fg-muted">{t('overallProgress')}</p>
-            <Progress
-              className="mt-3"
-              value={overall}
-              label={t('progressHours', {
-                earned: Math.round(earnedHours),
-                total: Math.round(totalHours),
-              })}
-            />
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand/12 text-brand">
-              <GraduationCap size={18} aria-hidden />
-            </span>
-            <div>
-              <p className="text-xs text-fg-muted">{t('currentGpa')}</p>
-              <p className="text-2xl font-bold tabular-nums">{fmtGpa(gpa ? dec(gpa.gpa) : null, locale)}</p>
-              <p className="text-xs text-fg-muted">{gpa?.credits ?? 0} кредитов</p>
+      {nextStep ? (
+        <Card className="mt-5 overflow-hidden border-brand/30">
+          <CardBody className="space-y-4 bg-brand-soft/60 sm:flex sm:items-center sm:gap-6 sm:space-y-0">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+                {t('continueNext')}
+              </p>
+              <p className="mt-1 text-lg font-bold leading-snug">{nextStep.item.title}</p>
+              <p className="mt-0.5 text-sm text-fg-muted">
+                {pickLocalized(nextStep.enrollment.course.discipline, 'name', locale)}
+              </p>
+              <Progress
+                className="mt-3"
+                value={nextStep.summary.percent}
+                label={t('progressItems', {
+                  done: nextStep.summary.completedItems,
+                  total: nextStep.summary.totalItems,
+                })}
+              />
             </div>
+            <Link
+              href={`/my/courses/${nextStep.enrollment.courseId}/items/${nextStep.item.id}`}
+              className="block sm:shrink-0"
+            >
+              <Button size="lg" className="w-full sm:w-auto">
+                {t('continueButton')} <ArrowRight size={18} aria-hidden />
+              </Button>
+            </Link>
           </CardBody>
         </Card>
-
-        <Card>
+      ) : allDone ? (
+        <Card className="mt-5">
           <CardBody className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-warning/12 text-warning">
-              <CalendarClock size={18} aria-hidden />
-            </span>
-            <div>
-              <p className="text-xs text-fg-muted">{t('upcomingDeadlines')}</p>
-              <p className="text-2xl font-bold tabular-nums">{deadlines.length}</p>
-            </div>
+            <CheckCircle2 size={22} aria-hidden className="shrink-0 text-success" />
+            <p className="font-medium">{t('allDone')}</p>
           </CardBody>
         </Card>
+      ) : null}
+
+      {/* Показатели — плитки-ссылки в одну строку: на телефоне три отдельные
+          карточки занимали весь первый экран и отодвигали сами занятия */}
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4">
+        <Link href="/my/courses" className="block">
+          <Card className="h-full transition-shadow hover:shadow-md">
+            <CardBody className="px-3 py-3 sm:px-5 sm:py-4">
+              <TrendingUp size={18} aria-hidden className="text-brand" />
+              <p className="mt-2 text-xl font-bold tabular-nums sm:text-2xl">{Math.round(overall)}%</p>
+              <p className="text-[0.6875rem] leading-tight text-fg-muted sm:text-xs">
+                {t('overallProgress')}
+              </p>
+            </CardBody>
+          </Card>
+        </Link>
+        <Link href="/my/grades" className="block">
+          <Card className="h-full transition-shadow hover:shadow-md">
+            <CardBody className="px-3 py-3 sm:px-5 sm:py-4">
+              <GraduationCap size={18} aria-hidden className="text-brand" />
+              <p className="mt-2 text-xl font-bold tabular-nums sm:text-2xl">
+                {fmtGpa(gpa ? dec(gpa.gpa) : null, locale)}
+              </p>
+              <p className="text-[0.6875rem] leading-tight text-fg-muted sm:text-xs">
+                {t('currentGpa')}
+              </p>
+            </CardBody>
+          </Card>
+        </Link>
+        <a href="#deadlines" className="block">
+          <Card className="h-full transition-shadow hover:shadow-md">
+            <CardBody className="px-3 py-3 sm:px-5 sm:py-4">
+              <CalendarClock size={18} aria-hidden className="text-warning" />
+              <p className="mt-2 text-xl font-bold tabular-nums sm:text-2xl">{deadlines.length}</p>
+              <p className="text-[0.6875rem] leading-tight text-fg-muted sm:text-xs">
+                {t('upcomingDeadlines')}
+              </p>
+            </CardBody>
+          </Card>
+        </a>
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -225,7 +288,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
         </section>
 
         <aside className="space-y-6">
-          <Card>
+          <Card id="deadlines" className="scroll-mt-20">
             <CardHeader><CardTitle>{t('upcomingDeadlines')}</CardTitle></CardHeader>
             <CardBody>
               {deadlines.length === 0 ? (

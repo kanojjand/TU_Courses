@@ -70,7 +70,19 @@
     "electives": "Elective course catalogue",
     "iep": "My study plan",
     "chats": "Chats",
-    "practice": "Practice"
+    "practice": "Practice",
+    "tabCourses": "Courses",
+    "tabGrades": "Grades",
+    "tabCatalog": "Catalog",
+    "tabManage": "Manage",
+    "electivesShort": "Electives",
+    "supportShort": "Support",
+    "more": "More",
+    "menu": "Menu",
+    "profile": "Profile",
+    "logout": "Log out",
+    "language": "Language",
+    "theme": "Theme"
   },
   "home": {
     "heroTitle": "University online learning platform",
@@ -129,6 +141,10 @@
     "readFull": "Read the full text"
   },
   "student": {
+    "continueTitle": "Continue learning",
+    "continueNext": "Next up",
+    "continueButton": "Continue",
+    "allDone": "All lessons completed",
     "currentCourses": "Current period courses",
     "upcomingDeadlines": "Upcoming deadlines",
     "overallProgress": "Overall progress",
@@ -206,6 +222,13 @@
     "periods": "Academic periods",
     "enrollments": "Enrollments",
     "courses": "Course review",
+    "curricula": "Curricula",
+    "groups": "Study groups",
+    "ieps": "Individual study plans",
+    "appeals": "Appeals and credit transfer",
+    "announcements": "Announcements",
+    "practice": "Professional practice",
+    "attestation": "Final attestation",
     "gradesheets": "Grade sheets",
     "reports": "Reports",
     "integrations": "Integrations",
@@ -217,14 +240,7 @@
     "academicHour": "Academic hour duration, minutes",
     "gradeFormula": "Final grade formula",
     "outboxQueue": "Outgoing event queue",
-    "approveFinalGrades": "Approve transfer of final grades",
-    "curricula": "Curricula",
-    "groups": "Study groups",
-    "ieps": "Individual study plans",
-    "appeals": "Appeals and credit transfer",
-    "announcements": "Announcements",
-    "practice": "Professional practice",
-    "attestation": "Final attestation"
+    "approveFinalGrades": "Approve transfer of final grades"
   },
   "errors": {
     "notFoundTitle": "Page not found",

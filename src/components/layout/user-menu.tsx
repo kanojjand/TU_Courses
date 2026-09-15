@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
 import { Info, LifeBuoy, LogOut, User as UserIcon } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { ROLE_LABELS, type SessionUser, type RoleCode } from '@/lib/rbac';
 import { initials } from '@/lib/utils';
@@ -28,7 +28,8 @@ export function UserMenu({ user }: { user: SessionUser }) {
     };
   }, []);
 
-  const lang = user.uiLanguage.toLowerCase() as 'kk' | 'ru' | 'en';
+  // Язык подписей — текущий язык интерфейса, а не сохранённый в профиле
+  const lang = useLocale() as 'kk' | 'ru' | 'en';
 
   return (
     <div className="relative" ref={ref}>

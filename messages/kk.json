@@ -70,7 +70,19 @@
     "electives": "Элективті пәндер каталогы",
     "iep": "Менің ЖОЖ",
     "chats": "Чаттар",
-    "practice": "Практика"
+    "practice": "Практика",
+    "tabCourses": "Курстар",
+    "tabGrades": "Бағалар",
+    "tabCatalog": "Каталог",
+    "tabManage": "Басқару",
+    "electivesShort": "Элективтер",
+    "supportShort": "Қолдау",
+    "more": "Тағы",
+    "menu": "Мәзір",
+    "profile": "Профиль",
+    "logout": "Шығу",
+    "language": "Тіл",
+    "theme": "Тақырып"
   },
   "home": {
     "heroTitle": "Университеттің онлайн оқыту платформасы",
@@ -129,6 +141,10 @@
     "readFull": "Толық мәтінді оқу"
   },
   "student": {
+    "continueTitle": "Оқуды жалғастыру",
+    "continueNext": "Келесі сабақ",
+    "continueButton": "Жалғастыру",
+    "allDone": "Барлық сабақтар өтілді",
     "currentCourses": "Ағымдағы кезең пәндері",
     "upcomingDeadlines": "Жақын мерзімдер",
     "overallProgress": "Жалпы үлгерім",
@@ -206,6 +222,13 @@
     "periods": "Академиялық кезеңдер",
     "enrollments": "Тіркеу",
     "courses": "Курстарды келісу",
+    "curricula": "Оқу жоспарлары",
+    "groups": "Академиялық топтар",
+    "ieps": "Білім алушылардың ЖОЖ",
+    "appeals": "Апелляциялар және қайта есептеу",
+    "announcements": "Хабарландырулар",
+    "practice": "Кәсіби практика",
+    "attestation": "Қорытынды аттестаттау",
     "gradesheets": "Ведомостьтер",
     "reports": "Есептер",
     "integrations": "Интеграция",
@@ -217,14 +240,7 @@
     "academicHour": "Академиялық сағаттың ұзақтығы, минут",
     "gradeFormula": "Қорытынды баға формуласы",
     "outboxQueue": "Шығыс оқиғалар кезегі",
-    "approveFinalGrades": "Қорытынды бағаларды беруді растау",
-    "curricula": "Оқу жоспарлары",
-    "groups": "Академиялық топтар",
-    "ieps": "Білім алушылардың ЖОЖ",
-    "appeals": "Апелляциялар және қайта есептеу",
-    "announcements": "Хабарландырулар",
-    "practice": "Кәсіби практика",
-    "attestation": "Қорытынды аттестаттау"
+    "approveFinalGrades": "Қорытынды бағаларды беруді растау"
   },
   "errors": {
     "notFoundTitle": "Бет табылмады",
