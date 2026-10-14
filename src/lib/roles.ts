@@ -93,6 +93,7 @@ export const ROLE_NAV: Record<Role, NavItem[]> = {
     { key: 'import', href: '/registrar/import', icon: 'upload', mobile: true },
     { key: 'sheets', href: '/registrar/sheets', icon: 'sheet', mobile: true },
     { key: 'requests', href: '/registrar/requests', icon: 'inbox', mobile: true },
+    { key: 'accounts', href: '/registrar/accounts', icon: 'users' },
     { key: 'syncHistory', href: '/registrar/history', icon: 'history' },
   ],
   advisor: [{ key: 'myGroups', href: '/advisor', icon: 'users', mobile: true }],

@@ -33,7 +33,7 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 });
 
 const id = () => uuid('id').primaryKey().defaultRandom();
-const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
+const createdAt = (name = 'created_at') => timestamp(name, { withTimezone: true }).notNull().defaultNow();
 const ts = (name: string) => timestamp(name, { withTimezone: true });
 
 /* ───────────────────────── Значения перечислений ───────────────────────── */
@@ -263,7 +263,7 @@ export const userRoles = lms.table(
     /** null для области «весь вуз» */
     scopeId: uuid('scope_id'),
     grantedBy: uuid('granted_by').references(() => users.id),
-    grantedAt: createdAt(),
+    grantedAt: createdAt('granted_at'),
   },
   (t) => [
     uniqueIndex('user_roles_uq').on(t.userId, t.role, t.scopeType, sql`coalesce(${t.scopeId}, '00000000-0000-0000-0000-000000000000'::uuid)`),
@@ -361,7 +361,7 @@ export const enrollments = lms.table(
       .references(() => offerings.id, { onDelete: 'cascade' }),
     status: text('status', { enum: ['active', 'dropped'] }).notNull().default('active'),
     source: text('source', { enum: ['platonus_file', 'platonus_api', 'manual'] }).notNull().default('platonus_file'),
-    enrolledAt: createdAt(),
+    enrolledAt: createdAt('enrolled_at'),
   },
   (t) => [
     uniqueIndex('enrollments_uq').on(t.studentId, t.offeringId),
@@ -401,7 +401,7 @@ export const courseAuthors = lms.table(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     assignedBy: uuid('assigned_by').references(() => users.id),
-    assignedAt: createdAt(),
+    assignedAt: createdAt('assigned_at'),
   },
   (t) => [primaryKey({ columns: [t.courseId, t.userId] })],
 );
@@ -417,7 +417,7 @@ export const courseVersions = lms.table(
     /** Снимок структуры: модули → уроки → блоки на момент публикации */
     snapshot: jsonb('snapshot').notNull(),
     approvedBy: uuid('approved_by').references(() => users.id),
-    publishedAt: createdAt(),
+    publishedAt: createdAt('published_at'),
   },
   (t) => [uniqueIndex('course_versions_uq').on(t.courseId, t.number)],
 );
@@ -599,7 +599,7 @@ export const quizAttempts = lms.table(
       .references(() => offerings.id, { onDelete: 'cascade' }),
     /** Порядок вопросов и вариантов, зафиксированный при старте */
     layout: jsonb('layout').$type<{ q: string; o: string[] }[]>().notNull(),
-    startedAt: createdAt(),
+    startedAt: createdAt('started_at'),
     deadlineAt: ts('deadline_at'),
     finishedAt: ts('finished_at'),
     score: real('score'),
@@ -656,7 +656,7 @@ export const submissions = lms.table(
       .references(() => offerings.id, { onDelete: 'cascade' }),
     fileIds: jsonb('file_ids').$type<string[]>().notNull().default([]),
     text: text('text'),
-    submittedAt: createdAt(),
+    submittedAt: createdAt('submitted_at'),
     isLate: boolean('is_late').notNull().default(false),
     score: real('score'),
     feedback: text('feedback'),
@@ -683,7 +683,7 @@ export const lessonProgress = lms.table(
     /** Без внешнего ключа: урок может быть удалён из черновика, а студенты видят опубликованную версию */
     lessonId: uuid('lesson_id').notNull(),
     status: text('status', { enum: ['in_progress', 'completed'] }).notNull().default('in_progress'),
-    startedAt: createdAt(),
+    startedAt: createdAt('started_at'),
     completedAt: ts('completed_at'),
     lastSeenAt: ts('last_seen_at').notNull().defaultNow(),
   },
@@ -820,7 +820,7 @@ export const syncRuns = lms.table('sync_runs', {
   direction: text('direction', { enum: ['in', 'out'] }).notNull(),
   kind: text('kind', { enum: SYNC_KINDS }).notNull(),
   method: text('method', { enum: ['file', 'api'] }).notNull().default('file'),
-  startedAt: createdAt(),
+  startedAt: createdAt('started_at'),
   finishedAt: ts('finished_at'),
   status: text('status', { enum: ['running', 'success', 'partial', 'failed'] }).notNull().default('running'),
   counters: jsonb('counters').$type<SyncCounters>().notNull().default({ total: 0, created: 0, updated: 0, skipped: 0, errors: 0 }),

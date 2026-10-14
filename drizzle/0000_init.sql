@@ -94,7 +94,7 @@ CREATE TABLE "lms"."course_authors" (
 	"course_id" uuid NOT NULL,
 	"user_id" uuid NOT NULL,
 	"assigned_by" uuid,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"assigned_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "course_authors_course_id_user_id_pk" PRIMARY KEY("course_id","user_id")
 );
 --> statement-breakpoint
@@ -104,7 +104,7 @@ CREATE TABLE "lms"."course_versions" (
 	"number" integer NOT NULL,
 	"snapshot" jsonb NOT NULL,
 	"approved_by" uuid,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"published_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "lms"."courses" (
@@ -147,7 +147,7 @@ CREATE TABLE "lms"."enrollments" (
 	"offering_id" uuid NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"source" text DEFAULT 'platonus_file' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"enrolled_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "lms"."export_batches" (
@@ -278,7 +278,7 @@ CREATE TABLE "lms"."lesson_progress" (
 	"offering_id" uuid NOT NULL,
 	"lesson_id" uuid NOT NULL,
 	"status" text DEFAULT 'in_progress' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"started_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"completed_at" timestamp with time zone,
 	"last_seen_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "lesson_progress_student_id_offering_id_lesson_id_pk" PRIMARY KEY("student_id","offering_id","lesson_id")
@@ -381,7 +381,7 @@ CREATE TABLE "lms"."quiz_attempts" (
 	"quiz_id" uuid NOT NULL,
 	"offering_id" uuid NOT NULL,
 	"layout" jsonb NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"started_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"deadline_at" timestamp with time zone,
 	"finished_at" timestamp with time zone,
 	"score" real
@@ -445,7 +445,7 @@ CREATE TABLE "lms"."submissions" (
 	"offering_id" uuid NOT NULL,
 	"file_ids" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"text" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"submitted_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"is_late" boolean DEFAULT false NOT NULL,
 	"score" real,
 	"feedback" text,
@@ -467,7 +467,7 @@ CREATE TABLE "lms"."sync_runs" (
 	"direction" text NOT NULL,
 	"kind" text NOT NULL,
 	"method" text DEFAULT 'file' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"started_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"finished_at" timestamp with time zone,
 	"status" text DEFAULT 'running' NOT NULL,
 	"counters" jsonb DEFAULT '{"total":0,"created":0,"updated":0,"skipped":0,"errors":0}'::jsonb NOT NULL,
@@ -482,7 +482,7 @@ CREATE TABLE "lms"."user_roles" (
 	"scope_type" text DEFAULT 'university' NOT NULL,
 	"scope_id" uuid,
 	"granted_by" uuid,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"granted_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "lms"."users" (

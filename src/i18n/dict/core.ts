@@ -151,6 +151,7 @@ export const nav = {
   import: t('Импорт', 'Импорт', 'Import'),
   requests: t('Заявки', 'Өтінімдер', 'Requests'),
   syncHistory: t('История обменов', 'Алмасу тарихы', 'Exchange history'),
+  accounts: t('Учётные записи', 'Есептік жазбалар', 'Accounts'),
   myGroups: t('Мои группы', 'Менің топтарым', 'My groups'),
   dashboard: t('Дашборд', 'Дашборд', 'Dashboard'),
   users: t('Пользователи', 'Пайдаланушылар', 'Users'),

@@ -1,5 +1,5 @@
 {
-  "id": "0ee73778-6a1a-4282-b5f5-0d9024240381",
+  "id": "f7820d7e-9702-45d4-8425-d26d6c2372a7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -596,8 +596,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "created_at": {
-          "name": "created_at",
+        "assigned_at": {
+          "name": "assigned_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -698,8 +698,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "created_at": {
-          "name": "created_at",
+        "published_at": {
+          "name": "published_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -1137,8 +1137,8 @@
           "notNull": true,
           "default": "'platonus_file'"
         },
-        "created_at": {
-          "name": "created_at",
+        "enrolled_at": {
+          "name": "enrolled_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -2435,8 +2435,8 @@
           "notNull": true,
           "default": "'in_progress'"
         },
-        "created_at": {
-          "name": "created_at",
+        "started_at": {
+          "name": "started_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -3471,8 +3471,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "created_at": {
-          "name": "created_at",
+        "started_at": {
+          "name": "started_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -4099,8 +4099,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "created_at": {
-          "name": "created_at",
+        "submitted_at": {
+          "name": "submitted_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -4358,8 +4358,8 @@
           "notNull": true,
           "default": "'file'"
         },
-        "created_at": {
-          "name": "created_at",
+        "started_at": {
+          "name": "started_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -4463,8 +4463,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "created_at": {
-          "name": "created_at",
+        "granted_at": {
+          "name": "granted_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
