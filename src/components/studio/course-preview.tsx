@@ -16,15 +16,16 @@ export async function CoursePreview({ snap, basePath, lessonId }: { snap: Course
   const t = await getTranslations();
   const all = flattenLessons(snap);
   const lesson = all.find((l) => l.id === lessonId) ?? all[0];
-  const blockIds = lesson?.blocks.map((b) => b.id) ?? [];
-  const fileIds = lesson?.blocks.map((b) => b.data.fileId).filter(Boolean) as string[];
+  const blocks = lesson?.blocks ?? [];
+  const blockIds = blocks.map((b) => b.id);
+  const fileIds = blocks.map((b) => b.data.fileId).filter(Boolean) as string[];
   const [qz, asg, fl] = await Promise.all([
     blockIds.length ? db.select().from(quizzes).where(inArray(quizzes.blockId, blockIds)) : [],
     blockIds.length ? db.select().from(assignments).where(inArray(assignments.blockId, blockIds)) : [],
     fileIds.length ? db.select().from(files).where(inArray(files.id, fileIds)) : [],
   ]);
   const videos = new Map(
-    await Promise.all((lesson?.blocks.filter((b) => b.type === 'video') ?? []).map(async (b) => [b.id, (await videoSource(b.data.mediaId)).source] as const)),
+    await Promise.all(blocks.filter((b) => b.type === 'video').map(async (b) => [b.id, (await videoSource(b.data.mediaId)).source] as const)),
   );
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
