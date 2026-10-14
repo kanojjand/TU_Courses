@@ -17,7 +17,8 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio",
     "worker": "tsx scripts/worker.ts",
-    "verify": "npm run typecheck && npm run test && npm run build"
+    "verify": "npm run typecheck && npm run test && npm run build",
+    "vercel-build": "tsx scripts/migrate.ts && tsx scripts/seed-demo-if-empty.ts && next build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

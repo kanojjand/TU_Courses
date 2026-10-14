@@ -51,13 +51,12 @@ export async function getFileMeta(id: string) {
   return f ?? null;
 }
 
+/** Тело файла: сначала из базы (файлы бесплатного стенда переезжают вместе с дампом), иначе из S3 */
 export async function readFileBody(f: typeof files.$inferSelect): Promise<BodyInit | null> {
-  if (driver() === 's3' && !f.storageKey.startsWith('db:')) {
-    const { client, url } = s3();
-    const res = await client.fetch(url(f.storageKey));
-    if (!res.ok) return null;
-    return res.body;
-  }
   const [blob] = await db.select().from(fileBlobs).where(eq(fileBlobs.fileId, f.id));
-  return blob ? new Uint8Array(blob.data) : null;
+  if (blob) return new Uint8Array(blob.data);
+  if (driver() !== 's3') return null;
+  const { client, url } = s3();
+  const res = await client.fetch(url(f.storageKey));
+  return res.ok ? res.body : null;
 }
