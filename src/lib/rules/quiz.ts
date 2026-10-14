@@ -15,6 +15,7 @@ export const normalizeText = (s: string) =>
     .toLowerCase()
     .replace(/ё/g, 'е')
     .replace(/[\s ]+/g, ' ')
+    .trim()
     .replace(/[.,;:!?"'«»]+$/g, '')
     .trim();
 

@@ -452,7 +452,7 @@ async function main() {
   const questionsRows = await db.select().from(s.questions).where(eq(s.questions.bankId, bank.id));
   for (const [idx, sid] of group1.entries()) {
     const isDemo = sid === ids.student;
-    const share = isDemo ? 0.45 : idx % 4 === 3 ? 0.15 : 0.35 + rnd() * 0.65;
+    const share = isDemo ? 0.45 : idx % 4 === 3 ? 0.15 : 0.72 + rnd() * 0.28;
     const doneCount = Math.max(0, Math.min(allLessons.length, Math.round(allLessons.length * share)));
     for (const [li, l] of allLessons.entries()) {
       if (li > doneCount) break;
@@ -477,7 +477,7 @@ async function main() {
       await db.insert(s.quizAttempts).values({ studentId: sid, quizId: quiz.id, offeringId: oopP1.id, layout, startedAt: at('2026-10-05T10:00:00+05:00'), finishedAt: at('2026-10-05T10:14:00+05:00'), score });
       await db.insert(s.grades).values({ studentId: sid, gradeItemId: tkQuiz.id, score, rawScore: score, status: 'draft' });
     }
-    const reachedLab = allLessons.findIndex((l) => l.blocks.some((b) => b.id === assignmentBlockId)) < doneCount;
+    const reachedLab = allLessons.findIndex((l) => l.blocks.some((b) => b.id === assignmentBlockId)) <= doneCount;
     if (reachedLab && !isDemo) {
       const late = idx % 5 === 0;
       const graded = idx % 3 !== 0;
