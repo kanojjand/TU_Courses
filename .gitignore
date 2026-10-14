@@ -6,11 +6,8 @@ build
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
-/prisma/*.db
 coverage
-.tmpchk
-
-# Секреты. .env.example — шаблон без реальных значений, он отслеживается.
 .env
 .env.*
 !.env.example
+/storage-data

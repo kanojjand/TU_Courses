@@ -1,39 +1,26 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-type Tone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger';
+const tones = {
+  neutral: 'bg-surface-2 text-fg-muted border-border',
+  brand: 'bg-brand-soft text-brand border-brand/20',
+  success: 'bg-success-soft text-success border-success/20',
+  warning: 'bg-warning-soft text-warning border-warning/25',
+  danger: 'bg-danger-soft text-danger border-danger/20',
+  info: 'bg-info-soft text-info border-info/20',
+} as const;
 
-const tones: Record<Tone, string> = {
-  neutral: 'bg-muted text-fg-muted',
-  brand: 'bg-brand/12 text-brand',
-  success: 'bg-success/12 text-success',
-  warning: 'bg-warning/12 text-warning',
-  danger: 'bg-danger/12 text-danger',
-};
+export type Tone = keyof typeof tones;
 
-export function Badge({
-  tone = 'neutral',
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLSpanElement> & { tone?: Tone }) {
+export function Badge({ tone = 'neutral', className, ...props }: React.HTMLAttributes<HTMLSpanElement> & { tone?: Tone }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium',
+        'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
         tones[tone],
-        className
+        className,
       )}
       {...props}
     />
   );
-}
-
-/** Цвет по буквенной оценке (Приложение 1) */
-export function gradeTone(letter: string | null | undefined): Tone {
-  if (!letter) return 'neutral';
-  if (letter === 'F') return 'danger';
-  if (letter === 'FX') return 'warning';
-  if (letter.startsWith('A')) return 'success';
-  if (letter.startsWith('B')) return 'brand';
-  return 'neutral';
 }

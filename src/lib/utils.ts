@@ -5,106 +5,76 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Форматирование балла: 78 → «78», 78.5 → «78,5» */
-export function fmtScore(value: number | null | undefined, locale = 'ru'): string {
-  if (value === null || value === undefined) return '—';
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
+export function fullName(u: { lastName: string; firstName: string; middleName?: string | null } | null | undefined) {
+  if (!u) return '';
+  return [u.lastName, u.firstName, u.middleName].filter(Boolean).join(' ');
 }
 
-/** GPA всегда с двумя знаками */
-export function fmtGpa(value: number | null | undefined, locale = 'ru'): string {
-  if (value === null || value === undefined) return '—';
-  return new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-export function fmtDate(value: Date | string | null | undefined, locale = 'ru'): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat(locale === 'kk' ? 'kk-KZ' : locale === 'en' ? 'en-GB' : 'ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(new Date(value));
-}
-
-export function fmtDateTime(value: Date | string | null | undefined, locale = 'ru'): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat(locale === 'kk' ? 'kk-KZ' : locale === 'en' ? 'en-GB' : 'ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
-}
-
-/** Размер файла в человекочитаемом виде */
-export function fmtBytes(bytes: number | bigint): string {
-  const n = typeof bytes === 'bigint' ? Number(bytes) : bytes;
-  if (n < 1024) return `${n} Б`;
-  if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} КБ`;
-  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} МБ`;
-  return `${(n / 1024 ** 3).toFixed(2)} ГБ`;
-}
-
-/** Минуты → «2 ч 15 мин» */
-export function fmtMinutes(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
-  if (h === 0) return `${m} мин`;
-  return m === 0 ? `${h} ч` : `${h} ч ${m} мин`;
-}
-
-/** Транслитерация для slug курса */
-export function slugify(input: string): string {
-  const map: Record<string, string> = {
-    а:'a',ә:'a',б:'b',в:'v',г:'g',ғ:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'i',к:'k',қ:'q',
-    л:'l',м:'m',н:'n',ң:'n',о:'o',ө:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ұ:'u',ү:'u',ф:'f',х:'h',
-    һ:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',і:'i',ь:'',э:'e',ю:'yu',я:'ya',
-  };
-  return input
-    .toLowerCase()
-    .split('')
-    .map((ch) => map[ch] ?? ch)
-    .join('')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-}
-
-/** Извлечение идентификатора видео из ссылки YouTube / Vimeo (F-T-06) */
-export function parseVideoUrl(
-  url: string
-): { provider: 'youtube' | 'vimeo'; id: string } | null {
-  const yt = url.match(
-    /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/
-  );
-  if (yt) return { provider: 'youtube', id: yt[1] };
-  const vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-  if (vm) return { provider: 'vimeo', id: vm[1] };
-  return null;
-}
-
-/**
- * Русское склонение существительного при числительном:
- * 1 запись, 2 записи, 5 записей.
- */
-export function plural(n: number, one: string, few: string, many: string): string {
-  const abs = Math.abs(n) % 100;
-  const last = abs % 10;
-  if (abs > 10 && abs < 20) return many;
-  if (last === 1) return one;
-  if (last >= 2 && last <= 4) return few;
-  return many;
-}
-
-/** Инициалы для аватара */
-export function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p.charAt(0).toUpperCase())
+export function shortName(u: { lastName: string; firstName: string; middleName?: string | null } | null | undefined) {
+  if (!u) return '';
+  const initials = [u.firstName, u.middleName]
+    .filter(Boolean)
+    .map((p) => `${p![0]}.`)
     .join('');
+  return `${u.lastName} ${initials}`.trim();
+}
+
+export function initials(u: { lastName: string; firstName: string }) {
+  return `${u.firstName?.[0] ?? ''}${u.lastName?.[0] ?? ''}`.toUpperCase();
+}
+
+export function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+
+export function round1(n: number) {
+  return Math.round(n * 10) / 10;
+}
+
+export function pct(part: number, total: number) {
+  return total > 0 ? Math.round((part / total) * 100) : 0;
+}
+
+export function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let v = bytes / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+export function formatDuration(sec: number | null | undefined) {
+  if (!sec && sec !== 0) return '';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/** Генератор понятных паролей без похожих символов (0/O, 1/l) */
+export function generatePassword(length = 10) {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+}
+
+export function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+export function groupBy<T, K extends string | number>(arr: T[], key: (x: T) => K): Record<K, T[]> {
+  const out = {} as Record<K, T[]>;
+  for (const x of arr) (out[key(x)] ??= []).push(x);
+  return out;
+}
+
+export function isUuid(v: unknown): v is string {
+  return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }

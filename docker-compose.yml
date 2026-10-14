@@ -1,0 +1,84 @@
+# TU Online на своём сервере в РК: база, хранилище файлов, приложение, фоновые задачи.
+# Запуск: cp .env.example .env && (заполнить) && docker compose up -d --build
+# Подробно: docs/SERVER.md
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tu_online
+      POSTGRES_USER: tu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+      TZ: Asia/Almaty
+    command: ['postgres', '-c', 'max_connections=300', '-c', 'shared_buffers=4GB', '-c', 'effective_cache_size=12GB', '-c', 'work_mem=16MB']
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tu -d tu_online']
+      interval: 10s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?задайте S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?задайте S3_SECRET_KEY}
+    volumes:
+      - minio:/data
+    ports:
+      - '127.0.0.1:9001:9001'
+
+  # Создаёт бакет для файлов при первом запуске
+  minio-init:
+    image: minio/mc:latest
+    depends_on: [minio]
+    entrypoint: >
+      /bin/sh -c "sleep 5; mc alias set local http://minio:9000 $${S3_ACCESS_KEY} $${S3_SECRET_KEY};
+      mc mb --ignore-existing local/$${S3_BUCKET:-tu-online}; exit 0"
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET:-tu-online}
+
+  migrate:
+    build: { context: ., target: worker }
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgres://tu:${POSTGRES_PASSWORD}@db:5432/tu_online
+    command: ['npx', 'tsx', 'scripts/migrate.ts']
+    restart: 'no'
+
+  app:
+    build: { context: ., target: app, args: { NEXT_PUBLIC_MAX_UPLOAD_MB: '200' } }
+    restart: unless-stopped
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://tu:${POSTGRES_PASSWORD}@db:5432/tu_online
+      DB_POOL_MAX: '40'
+      STORAGE_DRIVER: s3
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-tu-online}
+    ports:
+      - '127.0.0.1:3000:3000'
+
+  worker:
+    build: { context: ., target: worker }
+    restart: unless-stopped
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://tu:${POSTGRES_PASSWORD}@db:5432/tu_online
+      STORAGE_DRIVER: s3
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-tu-online}
+
+volumes:
+  pgdata:
+  minio:
