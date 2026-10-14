@@ -1,55 +1,68 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-const base =
-  'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg ' +
-  'placeholder:text-fg-muted focus:border-brand disabled:opacity-50';
+const field =
+  'w-full rounded-lg border border-border bg-surface px-3 text-[0.9375rem] text-fg placeholder:text-fg-muted/70 ' +
+  'focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-60 aria-[invalid=true]:border-danger';
 
-export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, ...props }, ref) => (
-    <input ref={ref} className={cn(base, 'h-10', className)} {...props} />
-  )
+export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(function Input(
+  { className, ...props },
+  ref,
+) {
+  return <input ref={ref} className={cn(field, 'h-11', className)} {...props} />;
+});
+
+export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
+  function Textarea({ className, ...props }, ref) {
+    return <textarea ref={ref} className={cn(field, 'min-h-24 py-2.5 leading-relaxed', className)} {...props} />;
+  },
 );
-Input.displayName = 'Input';
 
-export const Textarea = React.forwardRef<
-  HTMLTextAreaElement,
-  React.TextareaHTMLAttributes<HTMLTextAreaElement>
->(({ className, ...props }, ref) => (
-  <textarea ref={ref} className={cn(base, 'min-h-24 resize-y', className)} {...props} />
-));
-Textarea.displayName = 'Textarea';
+export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(function Select(
+  { className, children, ...props },
+  ref,
+) {
+  return (
+    <select ref={ref} className={cn(field, 'h-11 pr-8', className)} {...props}>
+      {children}
+    </select>
+  );
+});
 
-export const Select = React.forwardRef<
-  HTMLSelectElement,
-  React.SelectHTMLAttributes<HTMLSelectElement>
->(({ className, ...props }, ref) => (
-  <select ref={ref} className={cn(base, 'h-10', className)} {...props} />
-));
-Select.displayName = 'Select';
+export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
+  return <label className={cn('mb-1.5 block text-sm font-medium text-fg', className)} {...props} />;
+}
 
 export function Field({
   label,
   hint,
   error,
-  required,
+  htmlFor,
   children,
+  className,
 }: {
-  label: string;
-  hint?: string;
-  error?: string;
-  required?: boolean;
+  label?: React.ReactNode;
+  hint?: React.ReactNode;
+  error?: React.ReactNode;
+  htmlFor?: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <label className="block space-y-1.5">
-      <span className="block text-sm font-medium text-fg">
-        {label}
-        {required && <span className="ml-0.5 text-danger">*</span>}
-      </span>
+    <div className={cn('min-w-0', className)}>
+      {label && <Label htmlFor={htmlFor}>{label}</Label>}
       {children}
-      {hint && !error && <span className="block text-xs text-fg-muted">{hint}</span>}
-      {error && <span className="block text-xs text-danger">{error}</span>}
+      {hint && !error && <p className="mt-1 text-xs text-fg-muted">{hint}</p>}
+      {error && <p className="mt-1 text-xs font-medium text-danger">{error}</p>}
+    </div>
+  );
+}
+
+export function Checkbox({ label, className, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: React.ReactNode }) {
+  return (
+    <label className={cn('flex min-h-11 cursor-pointer items-center gap-3 text-[0.9375rem]', className)}>
+      <input type="checkbox" className="size-5 shrink-0 accent-[var(--brand)]" {...props} />
+      <span>{label}</span>
     </label>
   );
 }

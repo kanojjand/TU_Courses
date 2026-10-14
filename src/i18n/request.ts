@@ -1,53 +1,31 @@
+import { cookies, headers } from 'next/headers';
 import { getRequestConfig } from 'next-intl/server';
-import { routing } from './routing';
-
-function isSupported(value: string | undefined): value is (typeof routing.locales)[number] {
-  return !!value && (routing.locales as readonly string[]).includes(value);
-}
-
-export default getRequestConfig(async ({ requestLocale }) => {
-  const requested = await requestLocale;
-  const locale = isSupported(requested) ? requested : routing.defaultLocale;
-
-  return {
-    locale,
-    messages: (await import(`../../messages/${locale}.json`)).default,
-    timeZone: 'Asia/Almaty',
-    formats: {
-      dateTime: {
-        short: { day: '2-digit', month: '2-digit', year: 'numeric' },
-        long: { day: 'numeric', month: 'long', year: 'numeric' },
-        withTime: {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        },
-      },
-      number: {
-        score: { minimumFractionDigits: 0, maximumFractionDigits: 2 },
-        gpa: { minimumFractionDigits: 2, maximumFractionDigits: 2 },
-      },
-    },
-  };
-});
+import { defaultLocale, isLocale, LOCALE_COOKIE, type AppLocale } from './config';
+import { buildMessages } from './messages';
 
 /**
- * Выбор языкового варианта наименования справочника (F-L-03).
- * Порядок отката: запрошенный язык → русский → казахский → английский.
+ * Язык интерфейса без префикса в адресе: из cookie (ставится переключателем
+ * в шапке и при входе по настройке пользователя), иначе из языка браузера.
  */
-export function pickLocalized(
-  entity: Record<string, unknown>,
-  field: string,
-  locale: string
-): string {
-  const suffix = locale.charAt(0).toUpperCase() + locale.slice(1, 2).toLowerCase();
-  const order = [suffix, 'Ru', 'Kk', 'En'];
-  for (const s of order) {
-    const value = entity[`${field}${s}`];
-    if (typeof value === 'string' && value.length > 0) return value;
+export async function resolveLocale(): Promise<AppLocale> {
+  const store = await cookies();
+  const fromCookie = store.get(LOCALE_COOKIE)?.value;
+  if (isLocale(fromCookie)) return fromCookie;
+  const accept = (await headers()).get('accept-language') ?? '';
+  for (const part of accept.split(',')) {
+    const code = part.trim().slice(0, 2).toLowerCase();
+    if (code === 'kk' || code === 'kz') return 'kk';
+    if (isLocale(code)) return code;
   }
-  const plain = entity[field];
-  return typeof plain === 'string' ? plain : '';
+  return defaultLocale;
 }
+
+export default getRequestConfig(async () => {
+  const locale = await resolveLocale();
+  return {
+    locale,
+    messages: buildMessages(locale),
+    timeZone: 'Asia/Almaty',
+    now: new Date(),
+  };
+});

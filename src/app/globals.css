@@ -1,174 +1,206 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
 /*
- * Дизайн-токены — раздел 8.2 ТЗ.
- *
- * Палитра выведена из знака Tashenev University (public/brand/tu-mark.png,
- * официальный файл с tashenev.edu.kz). Замеры по пикселям знака:
- *   красный знака   #F90428  rgb(249 4 40)   = hsl(351 97% 50%)
- *   белый словесной части #F9F0F1  rgb(249 240 241)
- *
- * Отсюда:
- *   --c-brand-vivid — точный цвет знака, без правок. Используется там, где
- *     цвет обязан совпасть с логотипом: сам знак, крупные витринные акценты.
- *   --c-brand — рабочий красный интерфейса. Это тот же тон (H 351°, S 97%),
- *     затемнённый до L 46 %: чистый #F90428 даёт на белом контраст 4,1:1 и
- *     не проходит AA для обычного текста, #E70426 даёт 4,72:1 и проходит.
- *     Им красятся кнопки, ссылки, кольцо фокуса.
- *   нейтральные тона — тот же оттенок 351° при насыщенности 3–12 %, поэтому
- *     фон и рамки не «сереют» рядом со знаком. --c-muted равен белому
- *     словесной части знака.
- *
- * Замена палитры выполняется правкой значений ниже, компоненты не трогаются.
+ * Палитра TU Online. Фирменный красный — из знака Университета Ташенева,
+ * осветлён до #E70426 для контраста текста 4.7:1 (WCAG AA).
+ * Режим для слабовидящих (html.a11y) — крупнее шрифт, чёрный на белом,
+ * подчёркнутые ссылки, толстая рамка фокуса.
  */
 :root {
-  --c-bg: 251 247 248;
-  --c-surface: 255 255 255;
-  /* Белый словесной части знака */
-  --c-muted: 249 240 241;
-  --c-border: 235 223 226;
-  --c-fg: 26 18 21;
-  /* Контраст с фоном 4,9:1 — проходит AA для вспомогательного текста */
-  --c-fg-muted: 117 106 109;
-
-  /* Красный знака, затемнён до AA (4,72:1 с белым) */
-  --c-brand: 231 4 38;
-  /* Точный красный логотипа — только для самого знака и витринных акцентов */
-  --c-brand-vivid: 249 4 40;
-  --c-brand-fg: 255 255 255;
-  /* Подложка под акценты: баннеры, активные пункты меню, значки */
-  --c-brand-soft: 254 233 236;
-
-  --c-success: 17 122 76;
-  --c-warning: 176 106 6;
-  --c-danger: 190 42 42;
-
-  /* Скругления и тени вынесены в токены — «яркость» интерфейса задаётся
-     ими не меньше, чем цветом */
-  --r-sm: 0.5rem;
-  --r-md: 0.75rem;
-  --r-lg: 1rem;
-  --r-xl: 1.25rem;
-
-  --sh-sm: 0 1px 2px rgb(26 18 21 / 0.06), 0 1px 3px rgb(26 18 21 / 0.05);
-  --sh-md: 0 4px 12px rgb(26 18 21 / 0.07), 0 2px 4px rgb(26 18 21 / 0.04);
-  --sh-lg: 0 12px 32px rgb(26 18 21 / 0.10), 0 4px 8px rgb(26 18 21 / 0.04);
-  --sh-brand: 0 8px 24px rgb(249 4 40 / 0.20);
-
-  /* F-L-05: шрифт обязан отображать ә ғ қ ң ө ұ ү һ і.
-     Системные стеки ниже проверены на полноту казахской кириллицы. */
-  --font-ui: 'Segoe UI', 'Noto Sans', 'Helvetica Neue', Arial;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --fg: #111827;
+  --fg-muted: #586273;
+  --border: #e2e5ea;
+  --brand: #e70426;
+  --brand-hover: #c4031f;
+  --brand-fg: #ffffff;
+  --brand-soft: #fdecef;
+  --success: #15803d;
+  --success-soft: #e8f6ed;
+  --warning: #b45309;
+  --warning-soft: #fdf3e2;
+  --danger: #b91c1c;
+  --danger-soft: #fdecec;
+  --info: #1d4ed8;
+  --info-soft: #e8effd;
+  --ring: #e70426;
+  --radius: 0.75rem;
+  color-scheme: light;
 }
 
-/* Тёмная тема: тот же оттенок 351°, знак сохраняет собственный красный
-   (--c-brand-vivid не переопределяется — на тёмном фоне он даёт 4,6:1). */
-[data-theme='dark'] {
-  --c-bg: 20 15 17;
-  --c-surface: 30 24 26;
-  --c-muted: 42 34 37;
-  --c-border: 61 50 54;
-  --c-fg: 242 236 238;
-  --c-fg-muted: 162 150 154;
-  --c-brand: 255 122 138;
-  --c-brand-fg: 43 2 9;
-  --c-brand-soft: 56 24 29;
-  --c-success: 74 196 138;
-  --c-warning: 232 180 74;
-  --c-danger: 244 124 124;
-
-  --sh-sm: 0 1px 2px rgb(0 0 0 / 0.30);
-  --sh-md: 0 4px 12px rgb(0 0 0 / 0.36);
-  --sh-lg: 0 12px 32px rgb(0 0 0 / 0.45);
-  --sh-brand: 0 8px 24px rgb(255 122 138 / 0.18);
+html.a11y {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --fg: #000000;
+  --fg-muted: #1a1a1a;
+  --border: #000000;
+  --brand: #a3001a;
+  --brand-hover: #7a0014;
+  --brand-soft: #ffffff;
+  --success: #0b5a2a;
+  --success-soft: #ffffff;
+  --warning: #6b3300;
+  --warning-soft: #ffffff;
+  --danger: #8a0000;
+  --danger-soft: #ffffff;
+  --info: #0a2f8a;
+  --info-soft: #ffffff;
+  --ring: #000000;
+  font-size: 125%;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --c-bg: 20 15 17;
-    --c-surface: 30 24 26;
-    --c-muted: 42 34 37;
-    --c-border: 61 50 54;
-    --c-fg: 242 236 238;
-    --c-fg-muted: 162 150 154;
-    --c-brand: 255 122 138;
-    --c-brand-fg: 43 2 9;
-    --c-brand-soft: 56 24 29;
-    --c-success: 74 196 138;
-    --c-warning: 232 180 74;
-    --c-danger: 244 124 124;
-
-    --sh-sm: 0 1px 2px rgb(0 0 0 / 0.30);
-    --sh-md: 0 4px 12px rgb(0 0 0 / 0.36);
-    --sh-lg: 0 12px 32px rgb(0 0 0 / 0.45);
-    --sh-brand: 0 8px 24px rgb(255 122 138 / 0.18);
-  }
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-ring: var(--ring);
+  --font-sans: 'Inter Variable', 'Noto Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
   html {
     -webkit-text-size-adjust: 100%;
   }
   body {
-    @apply bg-bg text-fg antialiased;
-    font-family: var(--font-ui), system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
   }
-  /* Доступность (раздел 6.5): видимый фокус для навигации с клавиатуры */
+  *,
+  ::after,
+  ::before {
+    border-color: var(--border);
+  }
   :focus-visible {
-    @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-bg;
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
   }
-  h1, h2, h3, h4 {
-    @apply font-semibold tracking-tight text-fg;
+  html.a11y :focus-visible {
+    outline-width: 4px;
   }
-  table {
-    @apply w-full border-collapse text-sm;
+  html.a11y a {
+    text-decoration: underline;
   }
-}
-
-@layer components {
-  /* Читаемая ширина строки для учебного текста (раздел 8.2: 65–75 символов) */
+  html.a11y .shadow-sm,
+  html.a11y .shadow,
+  html.a11y .shadow-md {
+    box-shadow: none;
+  }
+  html.a11y [data-card] {
+    border-width: 2px;
+  }
+  button,
+  [role='button'] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  /* Текст урока из редактора */
   .prose-lesson {
-    @apply max-w-prose text-[1.0625rem] leading-[1.75];
+    line-height: 1.7;
+    font-size: 1.0625rem;
+    overflow-wrap: anywhere;
   }
-  .prose-lesson h2 { @apply mt-8 mb-3 text-xl; }
-  .prose-lesson h3 { @apply mt-6 mb-2 text-lg; }
-  .prose-lesson p { @apply my-4; }
-  .prose-lesson ul { @apply my-4 list-disc pl-6 space-y-1; }
-  .prose-lesson ol { @apply my-4 list-decimal pl-6 space-y-1; }
-  .prose-lesson a { @apply text-brand underline underline-offset-2; }
-  .prose-lesson blockquote { @apply my-4 border-l-4 border-brand/40 pl-4 italic text-fg-muted; }
-  .prose-lesson code { @apply rounded bg-muted px-1.5 py-0.5 text-[0.9em]; }
-  .prose-lesson pre { @apply my-4 overflow-x-auto rounded-lg bg-muted p-4 text-sm; }
-  .prose-lesson pre code { @apply bg-transparent p-0; }
-  .prose-lesson table { @apply my-4 text-sm; }
-  .prose-lesson th, .prose-lesson td { @apply border border-border px-3 py-2 text-left; }
-  .prose-lesson th { @apply bg-muted font-semibold; }
-  .prose-lesson img { @apply my-4 max-w-full rounded-lg; }
-
-  /* Плотные таблицы для деканата и преподавателя (раздел 8.2) */
-  .table-dense th {
-    @apply sticky top-0 z-10 whitespace-nowrap bg-muted px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-fg-muted;
+  .prose-lesson h1,
+  .prose-lesson h2 {
+    font-size: 1.375rem;
+    font-weight: 700;
+    margin: 1.4em 0 0.5em;
   }
-  .table-dense td {
-    @apply whitespace-nowrap border-t border-border px-2 py-1.5;
+  .prose-lesson h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 1.2em 0 0.4em;
   }
-  .table-dense tbody tr:hover {
-    @apply bg-muted/60;
+  .prose-lesson p {
+    margin: 0.7em 0;
   }
-
-  .scroll-x {
-    @apply overflow-x-auto;
-    scrollbar-width: thin;
+  .prose-lesson ul {
+    list-style: disc;
+    padding-left: 1.4em;
+    margin: 0.7em 0;
+  }
+  .prose-lesson ol {
+    list-style: decimal;
+    padding-left: 1.4em;
+    margin: 0.7em 0;
+  }
+  .prose-lesson a {
+    color: var(--brand);
+    text-decoration: underline;
+  }
+  .prose-lesson blockquote {
+    border-left: 4px solid var(--border);
+    padding-left: 1em;
+    color: var(--fg-muted);
+  }
+  .prose-lesson code {
+    background: var(--surface-2);
+    padding: 0.1em 0.35em;
+    border-radius: 0.3em;
+    font-size: 0.92em;
+  }
+  .prose-lesson pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 1em;
+    border-radius: 0.6em;
+    overflow-x: auto;
+  }
+  .prose-lesson pre code {
+    background: transparent;
+    padding: 0;
+  }
+  .prose-lesson table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  .prose-lesson td,
+  .prose-lesson th {
+    border: 1px solid var(--border);
+    padding: 0.4em 0.6em;
+  }
+  .ProseMirror {
+    outline: none;
+    min-height: 10rem;
+  }
+  .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: var(--fg-muted);
+    pointer-events: none;
+    height: 0;
   }
 }
 
-/* Печать ведомостей и транскрипта */
 @media print {
-  .no-print { display: none !important; }
-  body { background: #fff; color: #000; }
-  .table-dense th { background: #eee !important; }
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
 }

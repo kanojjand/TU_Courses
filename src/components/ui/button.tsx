@@ -1,48 +1,44 @@
+import { Slot } from 'radix-ui';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
-type Size = 'sm' | 'md' | 'lg' | 'icon';
+const variants = {
+  primary: 'bg-brand text-brand-fg hover:bg-brand-hover shadow-sm',
+  secondary: 'bg-surface text-fg border border-border hover:bg-surface-2',
+  ghost: 'text-fg hover:bg-surface-2',
+  danger: 'bg-danger text-white hover:opacity-90',
+  success: 'bg-success text-white hover:opacity-90',
+  link: 'text-brand underline-offset-4 hover:underline px-0 h-auto',
+} as const;
 
-const variants: Record<Variant, string> = {
-  primary:
-    'bg-brand text-brand-fg shadow-brand hover:brightness-110 active:brightness-95 disabled:opacity-40 disabled:shadow-none',
-  secondary: 'bg-muted text-fg hover:bg-border disabled:opacity-40',
-  outline: 'border border-border bg-surface text-fg hover:border-brand hover:text-brand disabled:opacity-40',
-  ghost: 'text-fg hover:bg-brand-soft hover:text-brand disabled:opacity-40',
-  danger: 'bg-danger text-white hover:brightness-110 disabled:opacity-40',
+const sizes = {
+  sm: 'h-9 px-3 text-sm gap-1.5',
+  md: 'h-11 px-4 text-[0.9375rem] gap-2',
+  lg: 'h-12 px-6 text-base gap-2',
+  icon: 'h-11 w-11',
+  'icon-sm': 'h-9 w-9',
+} as const;
+
+export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: keyof typeof variants;
+  size?: keyof typeof sizes;
+  asChild?: boolean;
 };
 
-/**
- * Высота на мобильных не опускается ниже 40 px: рекомендация по размеру
- * области нажатия (раздел 6.5 ТЗ, доступность с телефона).
- */
-const sizes: Record<Size, string> = {
-  sm: 'h-9 px-3.5 text-sm',
-  md: 'h-11 px-5 text-sm sm:h-10',
-  lg: 'h-12 px-7 text-base',
-  icon: 'h-10 w-10',
-};
-
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant;
-  size?: Size;
+export function buttonClass(variant: keyof typeof variants = 'primary', size: keyof typeof sizes = 'md', extra?: string) {
+  return cn(
+    'inline-flex shrink-0 items-center justify-center rounded-lg font-medium whitespace-nowrap transition-colors select-none',
+    'disabled:opacity-50 disabled:pointer-events-none [&_svg]:size-[1.15em] [&_svg]:shrink-0',
+    variants[variant],
+    sizes[size],
+    extra,
+  );
 }
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', ...props }, ref) => (
-    <button
-      ref={ref}
-      className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-semibold',
-        'transition-[filter,background-color,border-color,color,box-shadow] duration-150',
-        'disabled:pointer-events-none',
-        variants[variant],
-        sizes[size],
-        className
-      )}
-      {...props}
-    />
-  )
-);
-Button.displayName = 'Button';
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { className, variant = 'primary', size = 'md', asChild, type, ...props },
+  ref,
+) {
+  const Comp = asChild ? Slot.Root : 'button';
+  return <Comp ref={ref} type={asChild ? undefined : (type ?? 'button')} className={buttonClass(variant, size, className)} {...props} />;
+});
