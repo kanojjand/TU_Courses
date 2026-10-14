@@ -8,6 +8,7 @@ import type { GradeComponent } from '@/db/schema';
 import { pickName } from '@/i18n/config';
 import { requireUser } from '@/lib/auth';
 import { COMPONENT_ORDER } from '@/lib/grades';
+import { isDefaultItemTitle } from '@/lib/item-title';
 import { studentGradebook } from '@/lib/student';
 import { shortName } from '@/lib/utils';
 
@@ -35,6 +36,8 @@ export default async function GradesPage() {
                 <p className="text-2xl font-bold tabular-nums">{b.rating.rating}</p>
                 {b.rating.admitted ? (
                   <Badge tone="success">{t('learn.grades.admitted')}</Badge>
+                ) : b.comps.RK2 === null ? (
+                  <Badge>{t('learn.grades.ratingPending', { n: b.scheme.admissionThreshold })}</Badge>
                 ) : (
                   <Badge tone="warning">{t('learn.grades.notAdmitted', { n: b.scheme.admissionThreshold })}</Badge>
                 )}
@@ -76,8 +79,14 @@ export default async function GradesPage() {
                   {b.items.map(({ item, grade }) => (
                     <tr key={item.id}>
                       <Td>
-                        <span className="mr-2 text-xs text-fg-muted">{t(`enums.component.${item.component as GradeComponent}`)}</span>
-                        {item.title}
+                        {isDefaultItemTitle(item.title) ? (
+                          t(`enums.componentLong.${item.component as GradeComponent}`)
+                        ) : (
+                          <>
+                            <span className="mr-2 text-xs text-fg-muted">{t(`enums.component.${item.component as GradeComponent}`)}</span>
+                            {item.title}
+                          </>
+                        )}
                       </Td>
                       <Td>
                         {grade ? (

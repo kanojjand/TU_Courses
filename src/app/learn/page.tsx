@@ -8,6 +8,7 @@ import { EmptyState, Section } from '@/components/ui/page';
 import { Progress, ProgressRing } from '@/components/ui/progress';
 import { pickName } from '@/i18n/config';
 import { requireUser } from '@/lib/auth';
+import { isDefaultItemTitle } from '@/lib/item-title';
 import { flattenLessons } from '@/lib/course';
 import { recentGrades, studentCourses, studentDeadlines } from '@/lib/student';
 import { shortName } from '@/lib/utils';
@@ -116,7 +117,7 @@ export default async function StudentHome() {
                     <Link href={d.lessonId ? `/learn/${d.offeringId}/${d.lessonId}` : `/learn/${d.offeringId}`} className="flex items-start gap-3 p-3.5 hover:bg-surface-2/60">
                       <CalendarClock className={d.timing === 'late' ? 'mt-0.5 size-5 shrink-0 text-danger' : 'mt-0.5 size-5 shrink-0 text-fg-muted'} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[0.9375rem] font-medium">{d.title}</p>
+                        <p className="truncate text-[0.9375rem] font-medium">{isDefaultItemTitle(d.title) ? t(`enums.componentLong.${d.component as 'TK1'}`) : d.title}</p>
                         <p className="truncate text-xs text-fg-muted">{pickName(d.disciplineName, locale)}</p>
                       </div>
                       {d.dueAt && (
@@ -144,7 +145,7 @@ export default async function StudentHome() {
                 {grades.map((g) => (
                   <li key={g.grade.id} className="flex items-center gap-3 p-3.5">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[0.9375rem] font-medium">{g.item.title}</p>
+                      <p className="truncate text-[0.9375rem] font-medium">{isDefaultItemTitle(g.item.title) ? t(`enums.componentLong.${g.item.component}`) : g.item.title}</p>
                       <p className="truncate text-xs text-fg-muted">{pickName(g.discipline, locale)}</p>
                     </div>
                     <span className="text-lg font-bold tabular-nums">{g.grade.score}</span>

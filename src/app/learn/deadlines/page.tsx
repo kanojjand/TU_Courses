@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState, PageHeader, Section } from '@/components/ui/page';
 import { pickName } from '@/i18n/config';
 import { requireUser } from '@/lib/auth';
+import { isDefaultItemTitle } from '@/lib/item-title';
 import { upcomingWindows } from '@/lib/grades';
 import { studentDeadlines, studentOfferings, type DeadlineItem } from '@/lib/student';
 
@@ -26,7 +27,7 @@ export default async function DeadlinesPage() {
           <Link href={d.lessonId ? `/learn/${d.offeringId}/${d.lessonId}` : `/learn/${d.offeringId}`} className="flex flex-wrap items-center gap-3 p-4 hover:bg-surface-2/60">
             {tone === 'success' ? <CheckCircle2 className="size-5 shrink-0 text-success" /> : <CalendarClock className={tone === 'danger' ? 'size-5 shrink-0 text-danger' : 'size-5 shrink-0 text-fg-muted'} />}
             <div className="min-w-0 flex-1">
-              <p className="font-medium">{d.title}</p>
+              <p className="font-medium">{isDefaultItemTitle(d.title) ? t(`enums.componentLong.${d.component as 'TK1'}`) : d.title}</p>
               <p className="text-sm text-fg-muted">
                 {pickName(d.disciplineName, locale)} · {t(`enums.component.${d.component as 'TK1'}`)}
               </p>

@@ -127,6 +127,7 @@ export const learn = {
     admission: t('Рейтинг допуска', 'Рұқсат рейтингі', 'Admission rating'),
     admitted: t('Допуск к экзамену есть', 'Емтиханға рұқсат бар', 'Admitted to exam'),
     notAdmitted: t('Пока нет допуска (нужно {n})', 'Әзірге рұқсат жоқ ({n} қажет)', 'Not admitted yet ({n} needed)'),
+    ratingPending: t('Итог после РК2, порог {n}', 'Қорытынды АБ2-ден кейін, шегі {n}', 'Final after endterm, threshold {n}'),
     noGrades: t('Оценок пока нет', 'Әзірге бағалар жоқ', 'No grades yet'),
     item: t('Элемент', 'Элемент', 'Item'),
     finalNote: t(

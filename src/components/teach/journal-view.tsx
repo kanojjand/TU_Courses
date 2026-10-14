@@ -1,18 +1,19 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { pickName } from '@/i18n/config';
 import { offeringJournal } from '@/lib/grades';
+import { isDefaultItemTitle } from '@/lib/item-title';
 import { offeringAssessableBlocks } from '@/lib/teacher';
 import { Gradebook, type GBRow } from './gradebook';
 
 /** Журнал потока: на сервере собираем данные, редактирование — в клиентском компоненте */
 export async function JournalView({ offeringId, canEdit, disciplineName, stream }: { offeringId: string; canEdit: boolean; disciplineName: { nameKk: string; nameRu: string; nameEn: string }; stream: string }) {
   const [journal, blocks, locale] = await Promise.all([offeringJournal(offeringId), offeringAssessableBlocks(offeringId), getLocale()]);
-  await getTranslations();
+  const t = await getTranslations();
   const now = Date.now();
   const items = journal.items.map((i) => ({
     id: i.id,
     component: i.component,
-    title: i.title,
+    title: isDefaultItemTitle(i.title) ? t(`enums.componentLong.${i.component}`) : i.title,
     blockId: i.blockId,
     opensAt: i.opensAt?.toISOString() ?? null,
     dueAt: i.dueAt?.toISOString() ?? null,
